@@ -132,7 +132,7 @@ export default async function render(root) {
     });
   }
 
-  function paintResults() {
+function paintResults() {
   const { q, branch, subTheme, books } = state;
   const s = q.toLowerCase();
 
@@ -172,6 +172,8 @@ export default async function render(root) {
     ));
   });
 }
+
+  
 
 
 // --- 에러 표시 ---
