@@ -1,11 +1,10 @@
-// ⚠️ 브라우저 모듈은 "상대경로 + .js 확장자" 필수
+// 반드시 상대경로 + .js 확장자
 import { books } from './data/books.js';
 import { branches } from './data/branches.js';
-import BookSearchApp from './components/BookSearchApp.js';
 
 export default function render(root) {
-  console.log('[App] 시작', { bookCount: books?.length, branchCount: branches?.length });
-  const app = new BookSearchApp({ books, branches });
-  root.innerHTML = '';            // 초기화
-  root.appendChild(app.el);       // 컴포넌트 DOM 삽입
+  root.innerHTML = `
+    <h1>지관서가 도서검색</h1>
+    <p>총 <b>${Array.isArray(books) ? books.length : 0}</b>권 · 지점 <b>${Array.isArray(branches) ? branches.length : 0}</b>곳</p>
+  `;
 }
