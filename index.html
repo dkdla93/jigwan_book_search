@@ -4,15 +4,36 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>지관서가 도서검색</title>
+    <style>
+      body { font-family: system-ui, sans-serif; padding: 24px; }
+      #status { font-size: 20px; margin-bottom: 12px; }
+      #error { color: #b00020; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      #app { border-top: 1px solid #eee; margin-top: 16px; padding-top: 16px; }
+    </style>
   </head>
   <body>
+    <div id="status">It works: HTML이 정상 서빙되었습니다.</div>
+    <div id="error"></div>
     <div id="app"></div>
 
-    <!-- 반드시 type="module" -->
-    <script type="module">
-      import render from '/src/App.js';
-      const root = document.getElementById('app');
-      render(root);               // 여기서 실제로 DOM을 그립니다.
+    <script>
+      // 1) HTML이 보이면 최소한 index.html은 잘 서빙된 것
+      // 2) 이제 JS 모듈을 동적으로 불러오며, 오류를 화면에 찍습니다.
+      (async () => {
+        const $err = document.getElementById('error');
+        const $app = document.getElementById('app');
+        try {
+          // 브라우저 모듈은 절대/상대경로 + .js 확장자 필요
+          const mod = await import('/src/App.js');
+          if (typeof mod.default === 'function') {
+            mod.default($app);
+          } else {
+            $err.textContent = 'App.js는 기본 내보내기(default export) 함수가 필요합니다.\n예: export default function render(root) { ... }';
+          }
+        } catch (e) {
+          $err.textContent = '모듈 로드 오류:\n' + (e && (e.stack || e.message || String(e)));
+        }
+      })();
     </script>
   </body>
 </html>
