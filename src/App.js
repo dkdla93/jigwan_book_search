@@ -8,6 +8,13 @@ const isArray = Array.isArray;
 const normalizeBooks = (x) => (isArray(x) ? x : (x && isArray(x.books)) ? x.books : []);
 const normalizeBranches = (x) => (isArray(x) ? x : (x && isArray(x.branches)) ? x.branches : []);
 
+// 공백/대소문자 차이 방지를 위한 정규화
+function norm(v) {
+  if (v == null) return '';
+  return String(v).trim().replace(/\s+/g, ' ');
+}
+
+
 // 엘리먼트 생성/부착 유틸
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
@@ -188,56 +195,62 @@ export default async function render(root) {
     });
   }
 
-  function paintResults() {
-    const { q, branch, subTheme, books } = state;
-    const s = q.toLowerCase();
 
-    const filtered = books.filter((b) => {
-      const matchesQ = !s
-        ? true
-        : [b.title, b.author, b.publisher, b.branch, b.subTheme]
-            .filter(Boolean)
-            .some((v) => String(v).toLowerCase().includes(s));
-      const matchesBranch = branch === "전체" ? true : b.branch === branch;
-      const matchesSub = subTheme === "전체" ? true : b.subTheme === subTheme;
-      return matchesQ && matchesBranch && matchesSub;
-    });
+function paintResults() {
+  const { q, branch, subTheme, books } = state;
+  const s = norm(q).toLowerCase();
+  const selBranch = norm(branch);
+  const selSub    = norm(subTheme);
 
-    const metaEl = ensure(root, "#meta", () => el("div", { class: "muted", id: "meta" }));
-    const box = ensure(root, "#results", () => el("div", { class: "results", id: "results" }));
+  const filtered = books.filter(b => {
+    const bTitle = norm(b.title);
+    const bAuthor = norm(b.author);
+    const bPublisher = norm(b.publisher);
+    const bBranch = norm(b.branch);
+    const bTheme = norm(b.theme);
+    const bSub   = norm(b.subTheme);
 
-    metaEl.textContent = `총 ${filtered.length}권의 도서가 검색되었습니다.`;
+    // 검색어: 제목/저자/출판사/지점/소분류/테마 중 하나라도 포함
+    const matchesQ = !s ? true :
+      [bTitle, bAuthor, bPublisher, bBranch, bSub || bTheme]
+        .some(v => v.toLowerCase().includes(s));
 
-    box.innerHTML = "";
-    filtered.slice(0, 100).forEach((b) => {
-      box.append(
-        el(
-          "div",
-          { class: "card" },
-          el(
-            "div",
-            { style: "display:flex;align-items:center;gap:10px" },
-            el("div", { style: "font-size:22px" }, "📘"),
-            el(
-              "div",
-              {},
-              el("div", { style: "font-weight:700;font-size:18px" }, b.title || "제목 없음"),
-              el(
-                "div",
-                { class: "muted", style: "margin-top:4px" },
-                `저자: ${b.author || "-"} · 출판사: ${b.publisher || "-"}${b.year ? ` (${b.year})` : ""}`
-              )
-            )
-          ),
-          el("div", { class: "badges" }, badge(b.branch), badge(b.theme || b.lifeTheme || ""), badge(b.subTheme || ""))
+    // 지점 필터
+    const matchesBranch = (selBranch === '전체') ? true : (bBranch === selBranch);
+
+    // 소분류 필터: 우선 subTheme, 비어있으면 theme로 매칭
+    const bookFacet = bSub || bTheme;            // ← 핵심!
+    const matchesSub = (selSub === '전체') ? true : (norm(bookFacet) === selSub);
+
+    return matchesQ && matchesBranch && matchesSub;
+  });
+
+  const metaEl = root.querySelector('#meta');
+  const box    = root.querySelector('#results');
+  if (!metaEl || !box) return;
+
+  metaEl.textContent = `총 ${filtered.length}권의 도서가 검색되었습니다.`;
+
+  box.innerHTML = '';
+  filtered.slice(0, 100).forEach(b => {
+    const badges = [norm(b.branch), norm(b.theme), norm(b.subTheme)].filter(Boolean);
+
+    box.append(el('div', { class:'card' },
+      el('div', { style:'display:flex;align-items:center;gap:10px' },
+        el('div', { style:'font-size:22px' }, '📘'),
+        el('div', {},
+          el('div', { style:'font-weight:700;font-size:18px' }, b.title || '제목 없음'),
+          el('div', { class:'muted', style:'margin-top:4px' },
+            `저자: ${b.author || '-'} · 출판사: ${b.publisher || '-'}${b.year ? ` (${b.year})` : ''}`)
         )
-      );
-    });
-  }
-
-  // 최초 렌더
-  safePaint();
+      ),
+      el('div', { class:'badges' },
+        ...badges.map(txt => badge(txt))
+      )
+    ));
+  });
 }
+
 
 // --- error view --------------------------------------------------------------
 function showError(root, msg) {
