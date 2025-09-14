@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Book, MapPin, Tag, BookOpen, Star } from 'lucide-react';
-import { booksData } from '../data/books';
-import { branchesData } from '../data/branches';
+import { booksData } from '../data/books.js';
+import { branchesData } from '../data/branches.js';
 
 const BookSearchApp = () => {
   const [books, setBooks] = useState([]);
