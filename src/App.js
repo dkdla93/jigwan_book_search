@@ -79,18 +79,21 @@ export default async function render(root) {
     placeholder: "도서명, 저자명, 출판사로 검색하세요",
     value: state.q,
   });
+
+  // 타이틀과 칩을 분리: label(윗줄) + chips(아랫줄)
   const branchRow = el(
     "div",
     { class: "row" },
-    el("span", { class: "label" }, "지점(인생테마)"),
-    el("div", { class: "hscroll", id: "branchBar" })
+    el("div", { class: "label" }, "지점(인생테마)"),
+    el("div", { class: "chips", id: "branchBar" })
   );
   const subRow = el(
     "div",
     { class: "row" },
-    el("span", { class: "label" }, "소분류"),
-    el("div", { class: "hscroll", id: "subBar" })
+    el("div", { class: "label" }, "소분류"),
+    el("div", { class: "chips", id: "subBar" })
   );
+
   const tools = el(
     "div",
     { class: "toolbar" },
@@ -156,7 +159,7 @@ export default async function render(root) {
     });
   }
 
-  // ✅ 지점별 소분류: branches.json과 실제 데이터의 교집합만 표시
+  // 지점별 소분류: branches.json과 실제 데이터의 교집합만 표시
   function paintSubThemeChips() {
     const bar = root.querySelector("#subBar");
     bar.innerHTML = "";
