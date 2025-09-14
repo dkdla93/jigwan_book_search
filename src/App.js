@@ -9,13 +9,19 @@ const normalizeBooks = (x) => (isArray(x) ? x : (x && isArray(x.books)) ? x.book
 const normalizeBranches = (x) => (isArray(x) ? x : (x && isArray(x.branches)) ? x.branches : []);
 
 // 엘리먼트 생성/부착 유틸
-function el(tag, attrs = {}, children) {
+function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
   for (const k in attrs) node.setAttribute(k, attrs[k]);
-  if (Array.isArray(children)) children.forEach((ch) => append(node, ch));
-  else if (children != null) append(node, children);
+  // children 각각을 붙임 (배열/문자열/노드 모두 처리)
+  children.flat(10).forEach((ch) => {
+    if (ch == null) return;
+    if (typeof ch === 'string') node.appendChild(document.createTextNode(ch));
+    else node.appendChild(ch);
+  });
   return node;
 }
+
+
 function append(parent, child) {
   if (child == null) return;
   if (typeof child === "string") parent.appendChild(document.createTextNode(child));
