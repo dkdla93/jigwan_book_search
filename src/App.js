@@ -156,6 +156,7 @@ export default async function render(root) {
     });
   }
 
+  // ✅ 지점별 소분류: branches.json과 실제 데이터의 교집합만 표시
   function paintSubThemeChips() {
     const bar = root.querySelector("#subBar");
     bar.innerHTML = "";
@@ -165,22 +166,25 @@ export default async function render(root) {
         ? null
         : state.branches.find((b) => (b.branch || b.name) === state.branch);
 
-    if (!active) {
-      bar.append(
-        chip(
-          "전체",
-          state.subTheme === "전체",
-          () => {
-            state.subTheme = "전체";
-            paint();
-          },
-          true
-        )
-      );
-      bar.append(chip("지점을 먼저 선택하세요", false, null, true));
-      return;
+    // 현재 지점의 도서에서 실제로 존재하는 facet(subTheme || theme)
+    const availableFacetSet = new Set(
+      state.books
+        .filter((bk) => norm(bk.branch) === norm(state.branch))
+        .map((bk) => norm(bk.subTheme) || norm(bk.theme))
+        .filter(Boolean)
+    );
+
+    // 1) branches.json의 subThemes 중에서 실제 존재하는 것만
+    let candidate = [];
+    if (active && Array.isArray(active.subThemes) && active.subThemes.length) {
+      candidate = active.subThemes.filter((st) => availableFacetSet.has(norm(st)));
+    }
+    // 2) 교집합이 비면, 데이터 기반 facet들로 대체
+    if (!candidate.length) {
+      candidate = Array.from(availableFacetSet).sort();
     }
 
+    // 항상 '전체' 먼저
     bar.append(
       chip("전체", state.subTheme === "전체", () => {
         state.subTheme = "전체";
@@ -188,14 +192,19 @@ export default async function render(root) {
       })
     );
 
-    (active.subThemes || active.subthemes || []).forEach((st) => {
-      bar.append(
-        chip(st, state.subTheme === st, () => {
-          state.subTheme = st;
-          paint();
-        })
-      );
-    });
+    // 후보 칩 출력(없으면 가이드 칩)
+    if (candidate.length) {
+      candidate.forEach((st) => {
+        bar.append(
+          chip(st, state.subTheme === st, () => {
+            state.subTheme = st;
+            paint();
+          })
+        );
+      });
+    } else {
+      bar.append(chip("이 지점에는 소분류 데이터가 없습니다", false, null, true));
+    }
   }
 
   function paintResults() {
@@ -223,7 +232,7 @@ export default async function render(root) {
       const matchesBranch =
         selBranch === "전체" ? true : bBranch === selBranch;
 
-      // 소분류 필터: subTheme가 비었으면 theme로 대체
+      // 소분류 필터: subTheme가 비면 theme로 대체
       const bookFacet = bSub || bTheme;
       const matchesSub =
         selSub === "전체" ? true : norm(bookFacet) === selSub;
@@ -237,9 +246,7 @@ export default async function render(root) {
 
     box.innerHTML = "";
     filtered.slice(0, 100).forEach((b) => {
-      const badges = [norm(b.branch), norm(b.theme), norm(b.subTheme)].filter(
-        Boolean
-      );
+      const badges = [norm(b.branch), norm(b.theme), norm(b.subTheme)].filter(Boolean);
 
       box.append(
         el(
