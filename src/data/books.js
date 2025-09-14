@@ -1,4 +1,4 @@
-export const booksData = [
+export const books = [
   {
     title: '말들이 사는 나라',
     author: '윤여림 지음, 최미란 그림',
