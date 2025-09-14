@@ -104,7 +104,7 @@ export default async function render(root) {
     bar.innerHTML = '';
     bar.append(chip('전체', state.branch === '전체', () => { state.branch='전체'; state.subTheme='전체'; safePaint(); }));
     state.branches.forEach(b => {
-      const name  = b.branch || b.name || '';          // 방어적으로 키 확인
+      const name  = b.branch || b.name || '';
       const theme = b.lifeTheme || b.theme || '';
       const label = theme ? `${name} (${theme})` : name;
       bar.append(chip(label, state.branch === name, () => {
@@ -132,49 +132,45 @@ export default async function render(root) {
     });
   }
 
-function paintResults() {
-  const { q, branch, subTheme, books } = state;
-  const s = q.toLowerCase();
+  function paintResults() {
+    const { q, branch, subTheme, books } = state;
+    const s = q.toLowerCase();
 
-  const filtered = books.filter(b => {
-    const matchesQ = !s ? true : [b.title, b.author, b.publisher, b.branch, b.subTheme]
-      .filter(Boolean).some(v => String(v).toLowerCase().includes(s));
-    const matchesBranch = branch === '전체' ? true : (b.branch === branch);
-    const matchesSub    = subTheme === '전체' ? true : (b.subTheme === subTheme);
-    return matchesQ && matchesBranch && matchesSub;
-  });
+    const filtered = books.filter(b => {
+      const matchesQ = !s ? true : [b.title,b.author,b.publisher,b.branch,b.subTheme]
+        .filter(Boolean).some(v => String(v).toLowerCase().includes(s));
+      const matchesBranch = branch === '전체' ? true : (b.branch === branch);
+      const matchesSub    = subTheme === '전체' ? true : (b.subTheme === subTheme);
+      return matchesQ && matchesBranch && matchesSub;
+    });
 
-  // ✅ root 범위에서만 선택 (전역 X)
-  const metaEl = root.querySelector('#meta');
-  const box    = root.querySelector('#results');
+    const metaEl = root.querySelector('#meta');
+    const box    = root.querySelector('#results');
+    if (!metaEl || !box) return;
 
-  if (!metaEl || !box) {
-    // 요소가 아직 없으면 안전하게 리턴
-    return;
+    metaEl.textContent = `총 ${filtered.length}권의 도서가 검색되었습니다.`;
+
+    box.innerHTML = '';
+    filtered.slice(0, 100).forEach(b => {
+      box.append(el('div', { class:'card' },
+        el('div', { style:'display:flex;align-items:center;gap:10px' },
+          el('div', { style:'font-size:22px' }, '📘'),
+          el('div', {},
+            el('div', { style:'font-weight:700;font-size:18px' }, b.title || '제목 없음'),
+            el('div', { class:'muted', style:'margin-top:4px' },
+              `저자: ${b.author || '-'} · 출판사: ${b.publisher || '-'}${b.year ? ` (${b.year})` : ''}`)
+          )
+        ),
+        el('div', { class:'badges' },
+          badge(b.branch), badge(b.theme || b.lifeTheme || ''), badge(b.subTheme || '')
+        )
+      ));
+    });
   }
 
-  metaEl.textContent = `총 ${filtered.length}권의 도서가 검색되었습니다.`;
-
-  box.innerHTML = '';
-  filtered.slice(0, 100).forEach(b => {
-    box.append(el('div', { class:'card' },
-      el('div', { style:'display:flex;align-items:center;gap:10px' },
-        el('div', { style:'font-size:22px' }, '📘'),
-        el('div', {},
-          el('div', { style:'font-weight:700;font-size:18px' }, b.title || '제목 없음'),
-          el('div', { class:'muted', style:'margin-top:4px' },
-            `저자: ${b.author || '-'} · 출판사: ${b.publisher || '-'}${b.year ? ` (${b.year})` : ''}`)
-        )
-      ),
-      el('div', { class:'badges' },
-        badge(b.branch), badge(b.theme || b.lifeTheme || ''), badge(b.subTheme || '')
-      )
-    ));
-  });
+  // 최초 렌더
+  safePaint();
 }
-
-  
-
 
 // --- 에러 표시 ---
 function showError(root, msg) {
