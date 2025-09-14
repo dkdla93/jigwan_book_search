@@ -7,7 +7,12 @@
   </head>
   <body>
     <div id="app"></div>
-    <!-- 브라우저 ES 모듈로 직접 로딩 -->
-    <script type="module" src="/src/App.js"></script>
+
+    <!-- 반드시 type="module" -->
+    <script type="module">
+      import render from '/src/App.js';
+      const root = document.getElementById('app');
+      render(root);               // 여기서 실제로 DOM을 그립니다.
+    </script>
   </body>
 </html>
