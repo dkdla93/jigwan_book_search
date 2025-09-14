@@ -1,5 +1,5 @@
 import React from 'react';
-import BookSearchApp from './components/BookSearchApp';
+import BookSearchApp from './components/BookSearchApp.js';
 import './App.css';
 
 function App() {
