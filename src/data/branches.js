@@ -1,4 +1,4 @@
-export const branchesData = [
+export const branches = [
   { 
     branch: '울산대공원', 
     lifeTheme: '몸과 마음', 
