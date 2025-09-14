@@ -5,125 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>지관서가 도서검색</title>
     <style>
-      body {
-        font-family: system-ui, sans-serif;
-        background: #f5f7ff;
-        margin: 0;
-        padding: 30px;
-        display: flex;
-        justify-content: center;
+      :root{
+        --panel:#fff; --text:#0b1324; --muted:#6b7280;
+        --chip:#fff; --chip-active:#4f46e5; --chip-active-text:#fff;
+        --shadow:0 10px 25px rgba(2,6,23,.06); --radius:14px;
+        --bd:#e5e7eb;
       }
-      #app {
-        width: 100%;
-        max-width: 960px;
-      }
-      h1 {
-        font-size: 28px;
-        text-align: center;
-        margin-bottom: 4px;
-      }
-      h2 {
-        font-size: 15px;
-        text-align: center;
-        margin-top: 0;
-        color: #666;
-      }
-      .search {
-        width: 100%;
-        padding: 12px 14px;
-        font-size: 16px;
-        border-radius: 8px;
-        border: 1px solid #ccc;
-        outline: none;
-      }
-      .row {
-        margin-top: 18px;
-      }
-      .label {
-        display: block;
-        font-size: 14px;
-        margin-bottom: 6px;
-        font-weight: 600;
-      }
-      .hscroll {
-        display: flex;
-        gap: 8px;
-        overflow-x: auto;
-        padding-bottom: 4px;
-      }
-      .chip {
-        flex: 0 0 auto;
-        padding: 8px 14px;
-        border-radius: 20px;
-        border: 1px solid #ccc;
-        background: #fff;
-        cursor: pointer;
-        font-size: 14px;
-        white-space: nowrap;
-      }
-      .chip.active {
-        background: #4338ca;
-        color: #fff;
-        border-color: #4338ca;
-      }
-      .chip.ghost {
-        background: #f9fafb;
-        border-style: dashed;
-        color: #777;
-        cursor: default;
-      }
-      .toolbar {
-        margin-top: 12px;
-        display: flex;
-        justify-content: flex-end;
-      }
-      .btn {
-        padding: 8px 14px;
-        font-size: 14px;
-        border-radius: 6px;
-        border: 1px solid #ccc;
-        background: #fff;
-        cursor: pointer;
-      }
-      .btn:hover {
-        background: #f0f0f0;
-      }
-      .muted {
-        font-size: 14px;
-        color: #555;
-        margin: 12px 0;
-      }
-      .results {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-      .card {
-        background: #fff;
-        padding: 14px 18px;
-        border-radius: 12px;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-      }
-      .badges {
-        margin-top: 8px;
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-      }
-      .badge {
-        background: #eef2ff;
-        color: #4338ca;
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-size: 13px;
-      }
+      *{box-sizing:border-box}
+      body{margin:0;background:linear-gradient(180deg,#f8fafc,#eef2ff 80%);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,나눔고딕,Noto Sans KR,sans-serif}
+      .wrap{max-width:980px;margin:36px auto;padding:0 16px}
+      h1{font-size:32px;margin:0 0 6px;text-align:center}
+      .subtitle{color:var(--muted);text-align:center;margin:0 0 24px}
+      #app{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+
+      .search{width:100%;height:52px;border-radius:12px;border:1px solid var(--bd);padding:0 14px;font-size:16px}
+
+      .row{display:flex;align-items:center;gap:10px;margin:14px 0 6px}
+      .row .label{min-width:110px;color:#374151;font-weight:700;font-size:14px}
+
+      /* 가로 스크롤 칩 바 */
+      .hscroll{display:flex;gap:10px;overflow-x:auto;padding:6px 2px 2px 2px;scroll-snap-type:x mandatory}
+      .hscroll::-webkit-scrollbar{height:8px}
+      .hscroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}
+
+      /* 칩 버튼 */
+      .chip{flex:0 0 auto;scroll-snap-align:center;border:1px solid var(--bd);background:var(--chip);color:#1f2937;padding:8px 14px;border-radius:999px;cursor:pointer;font-size:14px;line-height:1;transition:.15s;white-space:nowrap}
+      .chip:hover{transform:translateY(-1px)}
+      .chip.active{background:var(--chip-active);border-color:var(--chip-active);color:var(--chip-active-text)}
+      .chip.ghost{background:#f9fafb;border-style:dashed;color:#6b7280;cursor:default}
+
+      .toolbar{display:flex;justify-content:flex-end;margin-top:8px}
+      .btn{border:1px solid var(--bd);background:#fff;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer}
+      .btn:active{transform:translateY(1px)}
+
+      .muted{color:var(--muted);margin-top:10px}
+      .results{margin-top:10px}
+      .card{background:#fff;border:1px solid #eef2ff;border-radius:12px;padding:14px 16px;margin:10px 0;box-shadow:0 6px 14px rgba(2,6,23,.04)}
+      .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+      .badge{background:#eef2ff;color:#4338ca;border-radius:999px;padding:6px 10px;font-size:12px}
     </style>
   </head>
   <body>
-    <div id="app">
+    <div class="wrap">
       <h1>지관서가</h1>
-      <h2>북카페 도서검색</h2>
+      <p class="subtitle">북카페 도서검색</p>
+
+      <div id="app">로드 중…</div>
     </div>
+
     <script type="module">
       import render from "./src/App.js";
       render(document.getElementById("app"));
