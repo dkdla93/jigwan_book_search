@@ -133,41 +133,46 @@ export default async function render(root) {
   }
 
   function paintResults() {
-    const { q, branch, subTheme, books } = state;
-    const s = q.toLowerCase();
-    const filtered = books.filter(b => {
-      const matchesQ = !s ? true : [b.title,b.author,b.publisher,b.branch,b.subTheme]
-        .filter(Boolean).some(v => String(v).toLowerCase().includes(s));
-      const matchesBranch = branch === '전체' ? true : (b.branch === branch);
-      const matchesSub    = subTheme === '전체' ? true : (b.subTheme === subTheme);
-      return matchesQ && matchesBranch && matchesSub;
-    });
+  const { q, branch, subTheme, books } = state;
+  const s = q.toLowerCase();
 
-    document.getElementById('meta').textContent =
-      `총 ${filtered.length}권의 도서가 검색되었습니다.`;
+  const filtered = books.filter(b => {
+    const matchesQ = !s ? true : [b.title, b.author, b.publisher, b.branch, b.subTheme]
+      .filter(Boolean).some(v => String(v).toLowerCase().includes(s));
+    const matchesBranch = branch === '전체' ? true : (b.branch === branch);
+    const matchesSub    = subTheme === '전체' ? true : (b.subTheme === subTheme);
+    return matchesQ && matchesBranch && matchesSub;
+  });
 
-    const box = document.getElementById('results');
-    box.innerHTML = '';
-    filtered.slice(0, 100).forEach(b => {
-      box.append(el('div', { class:'card' },
-        el('div', { style:'display:flex;align-items:center;gap:10px' },
-          el('div', { style:'font-size:22px' }, '📘'),
-          el('div', {},
-            el('div', { style:'font-weight:700;font-size:18px' }, b.title || '제목 없음'),
-            el('div', { class:'muted', style:'margin-top:4px' },
-              `저자: ${b.author || '-'} · 출판사: ${b.publisher || '-'}${b.year ? ` (${b.year})` : ''}`)
-          )
-        ),
-        el('div', { class:'badges' },
-          badge(b.branch), badge(b.theme || b.lifeTheme || ''), badge(b.subTheme || '')
-        )
-      ));
-    });
+  // ✅ root 범위에서만 선택 (전역 X)
+  const metaEl = root.querySelector('#meta');
+  const box    = root.querySelector('#results');
+
+  if (!metaEl || !box) {
+    // 요소가 아직 없으면 안전하게 리턴
+    return;
   }
 
-  // 최초 렌더
-  safePaint();
+  metaEl.textContent = `총 ${filtered.length}권의 도서가 검색되었습니다.`;
+
+  box.innerHTML = '';
+  filtered.slice(0, 100).forEach(b => {
+    box.append(el('div', { class:'card' },
+      el('div', { style:'display:flex;align-items:center;gap:10px' },
+        el('div', { style:'font-size:22px' }, '📘'),
+        el('div', {},
+          el('div', { style:'font-weight:700;font-size:18px' }, b.title || '제목 없음'),
+          el('div', { class:'muted', style:'margin-top:4px' },
+            `저자: ${b.author || '-'} · 출판사: ${b.publisher || '-'}${b.year ? ` (${b.year})` : ''}`)
+        )
+      ),
+      el('div', { class:'badges' },
+        badge(b.branch), badge(b.theme || b.lifeTheme || ''), badge(b.subTheme || '')
+      )
+    ));
+  });
 }
+
 
 // --- 에러 표시 ---
 function showError(root, msg) {
