@@ -23,14 +23,12 @@
     <style>
       :root{
         --brand:#006633;           /* 진한 녹색(Primary) */
-        --brand-2:#27775d;         /* 보조 녹색(Secondary) */
         --ink:#0b1324;
         --muted:#6b7280;
         --panel:#ffffff;
         --bd:#e5e7eb;
         --bg-grad-start:#f6faf8;
         --bg-grad-end:#edf5f1;
-
         --shadow:0 10px 25px rgba(2,6,23,.06);
         --radius:14px;
 
@@ -52,46 +50,33 @@
 
       .wrap{max-width:980px;margin:24px auto;padding:0 16px}
 
-      /* ===== Brand Header (PNG 마크 + 한자) ===== */
-      .brand.bi{
-        display:flex;align-items:center;justify-content:center;gap:16px;
+      /* ===== Brand Header: 한자 + '도서검색' 가로 결합 ===== */
+      .brand.word{
+        display:flex;justify-content:center;align-items:flex-end;gap:14px;
         margin:8px 0 18px; line-height:0;
       }
-      .bi-mark{ height:40px; width:auto; }
-      /* 필요하면 .bi-mark에 .tint-brand 클래스를 추가해 필터로 근사 염색 */
-      /* .bi-mark.tint-brand{ filter: invert(25%) sepia(24%) saturate(1200%) hue-rotate(115deg) brightness(90%) contrast(95%);} */
-
-      /* PNG를 마스크로 사용해 브랜드 색으로 채우고 싶다면 이미지 대신 다음을 사용:
-         <span class="bi-mark-mask"></span> */
-      .bi-mark-mask{
-        display:inline-block; width:56px; height:36px;
-        background-color: var(--brand);
-        -webkit-mask: url("/bi/mark.png") center/contain no-repeat;
-                mask: url("/bi/mark.png") center/contain no-repeat;
+      .word .hanja{ height:44px; width:auto; object-fit:contain; }
+      .word .sub{
+        line-height:1; transform: translateY(2px);
+        font-weight:700; color:var(--ink); letter-spacing:-.2px;
+        font-size:18px;
       }
-
-      .bi-hanja{ height:44px; width:auto; object-fit:contain; transform: translateY(1px); }
       @media (min-width: 900px){
-        .bi-mark{ height:56px; }
-        .bi-hanja{ height:64px; }
-        .bi-mark-mask{ width:72px; height:46px; }
+        .word .hanja{ height:64px; }
+        .word .sub{ font-size:22px; transform: translateY(4px); }
       }
 
-      /* ===== App card ===== */
+      /* ===== App Card ===== */
       #app{
         background:var(--panel);border-radius:var(--radius);
         box-shadow:var(--shadow);padding:18px
       }
 
-      /* ----- Search bar(form) + submit button ----- */
-      .searchbar{
-        position:relative;
-        display:block;
-      }
+      /* ===== Search form + green submit button ===== */
+      .searchbar{ position:relative; display:block; }
       .searchbar .search{
         width:100%;height:52px;border-radius:12px;border:1px solid var(--bd);
-        padding:0 44px 0 14px; /* 오른쪽 여백(버튼 자리) */
-        font-size:16px; outline:none;
+        padding:0 44px 0 14px; font-size:16px; outline:none;
       }
       .searchbar .search:focus{ border-color:#d4e6dd; box-shadow:0 0 0 3px rgba(0,102,51,.08); }
 
@@ -104,11 +89,10 @@
       .search-btn:hover{ filter: brightness(0.95); }
       .search-btn svg{ width:18px; height:18px; fill:#ffffff; }
 
-      /* ----- Filters/Chips ----- */
+      /* ===== Chips / Cards (기존 스타일 유지용) ===== */
       .row{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin:16px 0 6px}
       .row .label{color:#374151;font-weight:800;font-size:15px}
       .chips{display:flex;flex-wrap:wrap;gap:10px}
-
       .chip{
         border:1px solid var(--bd);background:var(--chip);color:#1f2937;
         padding:8px 14px;border-radius:999px;cursor:pointer;font-size:14px;line-height:1;
@@ -124,14 +108,6 @@
       }
       .chip.ghost{background:#f3f6f4;border-style:dashed;color:#6b7280;cursor:default}
 
-      .toolbar{display:flex;justify-content:flex-end;margin-top:8px}
-      .btn{
-        border:1px solid var(--bd);background:#fff;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer
-      }
-      .btn:hover{border-color:#d4e6dd}
-      .btn:active{transform:translateY(1px)}
-
-      .muted{color:var(--muted);margin-top:10px}
       .results{margin-top:10px}
       .card{
         background:#fff;border:1px solid #eef2ff;border-radius:12px;padding:14px 16px;margin:10px 0;
@@ -145,14 +121,10 @@
   </head>
   <body>
     <div class="wrap">
-      <!-- 로고(심볼 PNG) + 한자 PNG -->
-      <header class="brand bi" aria-label="지관서가 로고">
-        <!-- 방법 1: PNG 그대로 사용 -->
-        <img src="/bi/mark.png" alt="지관서가 심볼" class="bi-mark" decoding="async" />
-        <!-- 방법 2: PNG를 마스크로 사용하고 싶다면 위 IMG 대신 아래 span 사용 -->
-        <!-- <span class="bi-mark-mask" aria-hidden="true"></span> -->
-
-        <img src="/bi/hanja.png" alt="止觀書架" class="bi-hanja" decoding="async" />
+      <!-- 한자 이미지 + '도서검색' 텍스트 (가로로 결합, 중앙 정렬) -->
+      <header class="brand word" aria-label="지관서가">
+        <img src="/bi/hanja.png" alt="止觀書架" class="hanja" decoding="async" />
+        <span class="sub" aria-hidden="true">도서검색</span>
       </header>
 
       <div id="app">로드 중…</div>
@@ -161,24 +133,23 @@
     <script type="module">
       import render from "./src/App.js";
 
-      // 먼저 앱 렌더
+      // 앱 렌더 후 검색 입력을 form으로 래핑해 Enter/버튼 제출을 지원
       render(document.getElementById("app")).finally(() => {
         const app = document.getElementById("app");
-        const input = app.querySelector("input.search");  // App.js에서 붙인 검색 인풋
+        const input = app.querySelector("input.search");
         if (!input) return;
 
         // 이미 래핑되어 있으면 중복 방지
-        if (input.parentElement && input.parentElement.classList.contains("searchbar")) return;
+        if (input.parentElement && input.parentElement.tagName === "FORM") return;
 
-        // form 래핑 (role="search"로 접근성 향상, Enter 제출 가능)
         const form = document.createElement("form");
         form.className = "searchbar";
         form.setAttribute("role", "search");
         form.setAttribute("autocomplete", "off");
+
         input.parentNode.insertBefore(form, input);
         form.appendChild(input);
 
-        // 버튼 추가 (브랜드 초록색)
         const btn = document.createElement("button");
         btn.className = "search-btn";
         btn.type = "submit";
@@ -190,7 +161,7 @@
         `;
         form.appendChild(btn);
 
-        // 제출(Enter/버튼) 시 기존 필터 로직을 재사용: input 이벤트만 재발행
+        // Enter/버튼 제출 → 기본 이동 막고 App.js의 input 핸들러만 재실행
         form.addEventListener("submit", (e) => {
           e.preventDefault();
           input.dispatchEvent(new Event("input", { bubbles: true }));
