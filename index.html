@@ -58,12 +58,13 @@
       .word .hanja{ height:44px; width:auto; object-fit:contain; }
       .word .sub{
         line-height:1; transform: translateY(2px);
-        font-weight:700; color:var(--ink); letter-spacing:-.2px;
-        font-size:18px;
+        font-weight:400;            /* 더 얇게 */
+        color:var(--ink); letter-spacing:-.2px;
+        font-size:28px;             /* 더 크게(모바일) */
       }
       @media (min-width: 900px){
         .word .hanja{ height:64px; }
-        .word .sub{ font-size:22px; transform: translateY(4px); }
+        .word .sub{ font-size:36px; transform: translateY(4px); }  /* 더 크게(데스크톱) */
       }
 
       /* ===== App Card ===== */
@@ -89,7 +90,7 @@
       .search-btn:hover{ filter: brightness(0.95); }
       .search-btn svg{ width:18px; height:18px; fill:#ffffff; }
 
-      /* ===== Chips / Cards (기존 스타일 유지용) ===== */
+      /* ===== Chips / Cards ===== */
       .row{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin:16px 0 6px}
       .row .label{color:#374151;font-weight:800;font-size:15px}
       .chips{display:flex;flex-wrap:wrap;gap:10px}
@@ -117,6 +118,28 @@
       .badge{
         background:var(--badge-bg);color:var(--badge-ink);border-radius:999px;padding:6px 10px;font-size:12px
       }
+
+      /* ===== Reset 버튼(필터 초기화) 강제 스타일 ===== */
+      .btn-reset{
+        border:1px solid var(--bd);
+        background:#fff;
+        color:#1f2937;
+        border-radius:10px;
+        padding:8px 10px;
+        font-size:13px;
+        cursor:pointer;
+        transition:border-color .15s, box-shadow .15s, transform .02s;
+      }
+      .btn-reset:hover{ border-color:#d4e6dd; }
+      .btn-reset:active{ transform:translateY(1px); }
+      .btn-reset.brand{
+        border-color: var(--brand);
+        color: var(--brand);
+        background:#fff;
+      }
+      .btn-reset.brand:hover{
+        box-shadow:0 0 0 3px rgba(0,102,51,.08);
+      }
     </style>
   </head>
   <body>
@@ -133,40 +156,63 @@
     <script type="module">
       import render from "./src/App.js";
 
-      // 앱 렌더 후 검색 입력을 form으로 래핑해 Enter/버튼 제출을 지원
+      // 앱 렌더 후: (1) 검색 입력을 form으로 래핑, (2) 필터 초기화 버튼 스타일 강제 적용
       render(document.getElementById("app")).finally(() => {
         const app = document.getElementById("app");
+
+        /* ------ (1) 검색 입력을 form으로 래핑 ------ */
         const input = app.querySelector("input.search");
-        if (!input) return;
+        if (input && !(input.parentElement && input.parentElement.tagName === "FORM")) {
+          const form = document.createElement("form");
+          form.className = "searchbar";
+          form.setAttribute("role", "search");
+          form.setAttribute("autocomplete", "off");
 
-        // 이미 래핑되어 있으면 중복 방지
-        if (input.parentElement && input.parentElement.tagName === "FORM") return;
+          input.parentNode.insertBefore(form, input);
+          form.appendChild(input);
 
-        const form = document.createElement("form");
-        form.className = "searchbar";
-        form.setAttribute("role", "search");
-        form.setAttribute("autocomplete", "off");
+          const btn = document.createElement("button");
+          btn.className = "search-btn";
+          btn.type = "submit";
+          btn.setAttribute("aria-label", "검색");
+          btn.innerHTML = `
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M15.5 14h-.79l-.28-.27a6.471 6.471 0 0 0 1.57-4.23A6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
+            </svg>
+          `;
+          form.appendChild(btn);
 
-        input.parentNode.insertBefore(form, input);
-        form.appendChild(input);
+          // Enter/버튼 제출 → 기본 이동 막고 App.js의 input 핸들러만 재실행
+          form.addEventListener("submit", (e) => {
+            e.preventDefault();
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            input.focus();
+          });
+        }
 
-        const btn = document.createElement("button");
-        btn.className = "search-btn";
-        btn.type = "submit";
-        btn.setAttribute("aria-label", "검색");
-        btn.innerHTML = `
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M15.5 14h-.79l-.28-.27a6.471 6.471 0 0 0 1.57-4.23A6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
-          </svg>
-        `;
-        form.appendChild(btn);
+        /* ------ (2) '필터 초기화' 버튼에 브랜드 스타일 강제 ------ */
+        const applyResetStyle = (root=document) => {
+          const candidates = root.querySelectorAll('button, input[type="button"], input[type="reset"]');
+          candidates.forEach(el => {
+            const txt = (el.textContent || el.value || "").replace(/\s+/g, "");
+            // "필터 초기화" 텍스트 매칭
+            if (txt === "필터초기화") {
+              el.classList.add("btn-reset","brand");
+            }
+          });
+        };
 
-        // Enter/버튼 제출 → 기본 이동 막고 App.js의 input 핸들러만 재실행
-        form.addEventListener("submit", (e) => {
-          e.preventDefault();
-          input.dispatchEvent(new Event("input", { bubbles: true }));
-          input.focus();
+        applyResetStyle(app);
+
+        // 재렌더/동적 변동에도 유지되도록 감시
+        const mo = new MutationObserver(muts => {
+          for (const m of muts) {
+            if (m.type === "childList" && (m.addedNodes?.length || m.removedNodes?.length)) {
+              applyResetStyle(app);
+            }
+          }
         });
+        mo.observe(app, { childList:true, subtree:true });
       });
     </script>
   </body>
