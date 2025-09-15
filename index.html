@@ -3,13 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-    <!-- 브라우저 상단 색상도 브랜드 컬러로 -->
     <meta name="theme-color" content="#006633" />
-
     <title>지관서가 도서검색</title>
 
-    <!-- 심볼 기반 Favicon (SVG Data URL) -->
     <link
       rel="icon"
       href='data:image/svg+xml;utf8,
@@ -26,8 +22,8 @@
     <style>
       /* ===== Brand Palette ===== */
       :root{
-        --brand:#006633;          /* 진한 녹색(Primary) */
-        --brand-2:#27775d;        /* 올리브 녹색(Secondary) */
+        --brand:#006633;           /* 진한 녹색(Primary) */
+        --brand-2:#27775d;         /* 보조 녹색(Secondary) */
         --ink:#0b1324;
         --muted:#6b7280;
         --panel:#ffffff;
@@ -35,14 +31,15 @@
         --bg-grad-start:#f6faf8;
         --bg-grad-end:#edf5f1;
 
-        /* UI Tokens */
+        --shadow:0 10px 25px rgba(2,6,23,.06);
+        --radius:14px;
+
         --chip:#fff;
         --chip-active:var(--brand);
         --chip-active-text:#fff;
-        --badge-bg:#e8f3ee;        /* 살짝 밝은 초록 배경 */
-        --badge-ink:#0d5135;       /* 읽기 좋은 짙은 초록 텍스트 */
-        --shadow:0 10px 25px rgba(2,6,23,.06);
-        --radius:14px;
+
+        --badge-bg:#e8f3ee;
+        --badge-ink:#0d5135;
       }
 
       *{box-sizing:border-box}
@@ -55,37 +52,48 @@
 
       .wrap{max-width:980px;margin:24px auto;padding:0 16px}
 
-      /* ===== Brand Header ===== */
-      .brand{
-        display:flex;align-items:center;gap:14px;justify-content:center;
-        margin:8px 0 18px;
+      /* ===== Brand Header (로고+한자 가로 배치) ===== */
+      .brand.bi{
+        display:flex;align-items:center;justify-content:center;gap:16px;
+        margin:8px 0 18px; line-height:0;
       }
-      .brand .mark{
-        width:64px;height:32px;flex:0 0 auto;
-      }
-      .brand h1{
-        font-size:32px;line-height:1.05;margin:0;color:var(--ink);letter-spacing:-.5px
-      }
-      .brand .tagline{
-        margin:4px 0 0;text-align:center;color:var(--muted);font-size:14px
+      .bi-mark{ height:40px; width:auto; }
+      .bi-hanja{ height:44px; width:auto; object-fit:contain; transform: translateY(1px); }
+      @media (min-width: 900px){
+        .bi-mark{ height:56px; }
+        .bi-hanja{ height:64px; }
       }
 
-      /* App Container */
+      /* ===== App card ===== */
       #app{
         background:var(--panel);border-radius:var(--radius);
         box-shadow:var(--shadow);padding:18px
       }
 
-      .search{
-        width:100%;height:52px;border-radius:12px;border:1px solid var(--bd);
-        padding:0 14px;font-size:16px
+      /* ----- Search bar + button ----- */
+      .searchbar{
+        position:relative;
+        display:block;
       }
+      .searchbar .search{
+        width:100%;height:52px;border-radius:12px;border:1px solid var(--bd);
+        padding:0 44px 0 14px; /* 오른쪽 여백 확보(버튼 자리) */
+        font-size:16px; outline:none;
+      }
+      .searchbar .search:focus{ border-color:#d4e6dd; box-shadow:0 0 0 3px rgba(0,102,51,.08); }
 
-      /* 제목과 칩을 세로로 분리(두 줄) */
+      .search-btn{
+        position:absolute; right:8px; top:50%; transform:translateY(-50%);
+        height:36px; width:36px; border-radius:10px; border:1px solid var(--bd);
+        background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;
+        padding:0;
+      }
+      .search-btn:hover{ border-color:#d1e1da; }
+      .search-btn svg{ width:18px; height:18px; fill:#2b3a2f; }
+
+      /* ----- Filters/Chips ----- */
       .row{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin:16px 0 6px}
       .row .label{color:#374151;font-weight:800;font-size:15px}
-
-      /* 칩: 2줄 이상 줄바꿈으로 넓게 */
       .chips{display:flex;flex-wrap:wrap;gap:10px}
 
       .chip{
@@ -120,45 +128,59 @@
       .badge{
         background:var(--badge-bg);color:var(--badge-ink);border-radius:999px;padding:6px 10px;font-size:12px
       }
-
-      /* 데스크탑에서 칩 간격 약간 넓게 */
-      @media (min-width: 900px){
-        .chips{gap:12px}
-        .brand .mark{width:72px;height:36px}
-        .brand h1{font-size:34px}
-      }
     </style>
   </head>
   <body>
     <div class="wrap">
-
-      <!-- ===== Brand Header (심볼 + 워드마크) ===== -->
-      <header class="brand" aria-label="지관서가 로고">
-        <!-- 심볼: pause(세로 네모 2개) + equal(가로 네모 2개) -->
-        <svg class="mark" viewBox="0 0 190 90" role="img" aria-label="지관서가 심볼">
-          <g fill="#006633">
-            <rect x="10"  y="10" width="30" height="70" rx="6"></rect>
-            <rect x="50"  y="10" width="30" height="70" rx="6"></rect>
-            <rect x="100" y="10" width="80" height="22" rx="6"></rect>
-            <rect x="100" y="58" width="80" height="22" rx="6"></rect>
-          </g>
-        </svg>
-        <div>
-          <h1>止觀書架지관서가</h1>
-          <div class="tagline">북카페 도서검색</div>
-        </div>
+      <!-- 로고(심볼) + 한자 -->
+      <header class="brand bi" aria-label="지관서가 로고">
+        <img src="/bi/mark.svg" alt="지관서가 심볼" class="bi-mark" decoding="async" />
+        <img src="/bi/hanja.png" alt="止觀書架" class="bi-hanja" decoding="async" />
       </header>
 
-      <!-- ===== App ===== -->
+      <!-- App 컨테이너 -->
       <div id="app">로드 중…</div>
     </div>
 
     <script type="module">
       import render from "./src/App.js";
-      render(document.getElementById("app"));
 
-      // 칩의 보조색(hover/active 보조톤)을 약하게 섞고 싶다면 다음처럼 살짝 테마를 조정할 수 있어요.
-      // document.documentElement.style.setProperty('--chip-active', '#27775d'); // 보조톤으로 바꾸기 예시
+      // 1) 먼저 App.js가 기존대로 DOM을 그리고…
+      render(document.getElementById("app")).finally(() => {
+        // 2) 검색창(.search)을 감싸서 버튼을 붙입니다.
+        //    (App.js를 바꾸지 않고 버튼을 추가하기 위한 래핑)
+        const app = document.getElementById("app");
+        const input = app.querySelector("input.search");
+        if (!input) return;
+
+        // 이미 래핑되어 있으면 중복 방지
+        if (input.parentElement && input.parentElement.classList.contains("searchbar")) return;
+
+        // wrapper 만들고 input을 감싸기
+        const wrap = document.createElement("div");
+        wrap.className = "searchbar";
+        input.parentNode.insertBefore(wrap, input);
+        wrap.appendChild(input);
+
+        // 버튼 생성
+        const btn = document.createElement("button");
+        btn.className = "search-btn";
+        btn.type = "button";
+        btn.setAttribute("aria-label", "검색");
+        btn.innerHTML = `
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M15.5 14h-.79l-.28-.27a6.471 6.471 0 0 0 1.57-4.23A6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
+          </svg>
+        `;
+        wrap.appendChild(btn);
+
+        // 클릭 시 현재 입력값으로 필터 다시 적용(실시간 검색 보강)
+        btn.addEventListener("click", () => {
+          // App.js는 input 'input' 이벤트를 듣고 있으므로, 이벤트만 다시 쏴주면 됩니다.
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          input.focus();
+        });
+      });
     </script>
   </body>
 </html>
