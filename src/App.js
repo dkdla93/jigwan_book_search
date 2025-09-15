@@ -33,14 +33,16 @@ function chip(text, active = false, onClick = null, ghost = false) {
       type: "button",
       "aria-pressed": active,
       title: text,
-      ...(ghost ? { disabled: true } : {})
+      ...(ghost ? { disabled: true } : {}),
     },
     text
   );
   if (onClick && !ghost) c.addEventListener("click", onClick);
   return c;
 }
-function badge(text) { return el("span", { class: "badge" }, text || ""); }
+function badge(text) {
+  return el("span", { class: "badge" }, text || "");
+}
 
 function showError(root, msg) {
   root.innerHTML = "";
@@ -65,7 +67,7 @@ export default async function render(root) {
     subTheme: "전체",
     searchMode: "title", // 'title' | 'theme' | 'sub' | 'all'
     books: [],
-    branches: []
+    branches: [],
   };
 
   // 데이터 로드
@@ -119,8 +121,8 @@ export default async function render(root) {
   const results = el("div", { class: "results", id: "results" });
 
   root.append(
-    modeRow,                 // ← 검색 대상 칩
-    searchInput,             // ← 그 아래 검색창
+    modeRow, // ← 검색 대상 칩
+    searchInput, // ← 그 아래 검색창
     el("div", { style: "height:10px" }),
     branchRow,
     subRow,
@@ -169,8 +171,11 @@ export default async function render(root) {
       bar.append(
         chip(label, state.searchMode === key, () => {
           state.searchMode = key;
+          // 즉시 칩 활성화 + placeholder 반영 + 리스트 갱신
           searchInput.placeholder = placeholderFor(state.searchMode);
-          paintResults(); // 리스트만 즉시 갱신
+          paintSearchModeChips();   // ✅ 즉시 칩 UI 갱신 (버튼 눌렀을 때 바로 초록색)
+          paintResults();           // 목록만 다시 그림
+          searchInput.focus();
         })
       );
     });
@@ -178,11 +183,16 @@ export default async function render(root) {
 
   function placeholderFor(mode) {
     switch (mode) {
-      case "title": return "도서명으로 검색하세요";
-      case "theme": return "인생테마로 검색하세요 (예: 테마:명상)";
-      case "sub":   return "소분류로 검색하세요 (예: 명상(침묵), 그림책)";
-      case "all":   return "도서명/저자/출판사로 검색하세요";
-      default:      return "검색어를 입력하세요";
+      case "title":
+        return "도서명으로 검색하세요";
+      case "theme":
+        return "인생테마로 검색하세요 (예: 테마:명상)";
+      case "sub":
+        return "소분류로 검색하세요 (예: 명상(침묵), 그림책)";
+      case "all":
+        return "도서명/저자/출판사/지점/소분류(테마)까지 통합검색";
+      default:
+        return "검색어를 입력하세요";
     }
   }
 
@@ -223,10 +233,12 @@ export default async function render(root) {
         : state.branches.find((b) => (b.branch || b.name) === state.branch);
 
     if (!active) {
-      bar.append(chip("전체", state.subTheme === "전체", () => {
-        state.subTheme = "전체";
-        paint();
-      }));
+      bar.append(
+        chip("전체", state.subTheme === "전체", () => {
+          state.subTheme = "전체";
+          paint();
+        })
+      );
       bar.append(chip("지점을 먼저 선택하세요", false, null, true));
       return;
     }
@@ -312,19 +324,20 @@ export default async function render(root) {
         } else if (searchMode === "sub") {
           const facet = (bSub || bTheme).toLowerCase();
           matchesQ = facet.includes(s);
-        } else { // 'all' = 통합검색 → 도서명/저자/출판사
-          matchesQ = [bTitle, bAuthor, bPublisher].some(v => v.toLowerCase().includes(s));
+        } else {
+          // ✅ 통합검색: 도서명/저자/출판사/지점/소분류(없으면 테마)
+          const facet = (bSub || bTheme);
+          matchesQ = [bTitle, bAuthor, bPublisher, bBranch, facet]
+            .some((v) => (v || "").toLowerCase().includes(s));
         }
       }
 
       // 지점 필터
-      const matchesBranch =
-        selBranch === "전체" ? true : bBranch === selBranch;
+      const matchesBranch = selBranch === "전체" ? true : bBranch === selBranch;
 
       // 소분류 필터: subTheme 비면 theme로 대체
       const bookFacet = bSub || bTheme;
-      const matchesSub =
-        selSub === "전체" ? true : norm(bookFacet) === selSub;
+      const matchesSub = selSub === "전체" ? true : norm(bookFacet) === selSub;
 
       return matchesQ && matchesBranch && matchesSub;
     });
@@ -356,9 +369,9 @@ export default async function render(root) {
               el(
                 "div",
                 { class: "muted", style: "margin-top:4px" },
-                `저자: ${b.author || "-"} · 출판사: ${
-                  b.publisher || "-"
-                }${b.year ? ` (${b.year})` : ""}`
+                `저자: ${b.author || "-"} · 출판사: ${b.publisher || "-"}${
+                  b.year ? ` (${b.year})` : ""
+                }`
               )
             )
           ),
