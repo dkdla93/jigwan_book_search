@@ -3,64 +3,162 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- 브라우저 상단 색상도 브랜드 컬러로 -->
+    <meta name="theme-color" content="#006633" />
+
     <title>지관서가 도서검색</title>
+
+    <!-- 심볼 기반 Favicon (SVG Data URL) -->
+    <link
+      rel="icon"
+      href='data:image/svg+xml;utf8,
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 190 90">
+          <rect width="190" height="90" fill="white"/>
+          <g fill="%23006633">
+            <rect x="10"  y="10" width="30" height="70" rx="6"/>
+            <rect x="50"  y="10" width="30" height="70" rx="6"/>
+            <rect x="100" y="10" width="80" height="22" rx="6"/>
+            <rect x="100" y="58" width="80" height="22" rx="6"/>
+          </g>
+        </svg>' />
+
     <style>
+      /* ===== Brand Palette ===== */
       :root{
-        --panel:#fff; --text:#0b1324; --muted:#6b7280;
-        --chip:#fff; --chip-active:#4f46e5; --chip-active-text:#fff;
-        --shadow:0 10px 25px rgba(2,6,23,.06); --radius:14px;
+        --brand:#006633;          /* 진한 녹색(Primary) */
+        --brand-2:#27775d;        /* 올리브 녹색(Secondary) */
+        --ink:#0b1324;
+        --muted:#6b7280;
+        --panel:#ffffff;
         --bd:#e5e7eb;
+        --bg-grad-start:#f6faf8;
+        --bg-grad-end:#edf5f1;
+
+        /* UI Tokens */
+        --chip:#fff;
+        --chip-active:var(--brand);
+        --chip-active-text:#fff;
+        --badge-bg:#e8f3ee;        /* 살짝 밝은 초록 배경 */
+        --badge-ink:#0d5135;       /* 읽기 좋은 짙은 초록 텍스트 */
+        --shadow:0 10px 25px rgba(2,6,23,.06);
+        --radius:14px;
       }
+
       *{box-sizing:border-box}
-      body{margin:0;background:linear-gradient(180deg,#f8fafc,#eef2ff 80%);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,나눔고딕,Noto Sans KR,sans-serif}
-      .wrap{max-width:980px;margin:36px auto;padding:0 16px}
-      h1{font-size:32px;margin:0 0 6px;text-align:center}
-      .subtitle{color:var(--muted);text-align:center;margin:0 0 24px}
-      #app{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+      body{
+        margin:0;
+        color:var(--ink);
+        font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,나눔고딕,Noto Sans KR,sans-serif;
+        background:linear-gradient(180deg,var(--bg-grad-start),var(--bg-grad-end) 72%);
+      }
 
-      .search{width:100%;height:52px;border-radius:12px;border:1px solid var(--bd);padding:0 14px;font-size:16px}
+      .wrap{max-width:980px;margin:24px auto;padding:0 16px}
 
-      /* 제목을 윗줄, 칩은 아랫줄: 세로 정렬 */
+      /* ===== Brand Header ===== */
+      .brand{
+        display:flex;align-items:center;gap:14px;justify-content:center;
+        margin:8px 0 18px;
+      }
+      .brand .mark{
+        width:64px;height:32px;flex:0 0 auto;
+      }
+      .brand h1{
+        font-size:32px;line-height:1.05;margin:0;color:var(--ink);letter-spacing:-.5px
+      }
+      .brand .tagline{
+        margin:4px 0 0;text-align:center;color:var(--muted);font-size:14px
+      }
+
+      /* App Container */
+      #app{
+        background:var(--panel);border-radius:var(--radius);
+        box-shadow:var(--shadow);padding:18px
+      }
+
+      .search{
+        width:100%;height:52px;border-radius:12px;border:1px solid var(--bd);
+        padding:0 14px;font-size:16px
+      }
+
+      /* 제목과 칩을 세로로 분리(두 줄) */
       .row{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin:16px 0 6px}
       .row .label{color:#374151;font-weight:800;font-size:15px}
 
-      /* 칩 컨테이너: 2줄 이상 자동 줄바꿈 */
-      .chips{display:flex;flex-wrap:wrap;gap:10px 10px}
+      /* 칩: 2줄 이상 줄바꿈으로 넓게 */
+      .chips{display:flex;flex-wrap:wrap;gap:10px}
 
-      /* 칩 버튼 */
-      .chip{border:1px solid var(--bd);background:var(--chip);color:#1f2937;
-            padding:8px 14px;border-radius:999px;cursor:pointer;font-size:14px;line-height:1;transition:.15s;white-space:nowrap}
+      .chip{
+        border:1px solid var(--bd);background:var(--chip);color:#1f2937;
+        padding:8px 14px;border-radius:999px;cursor:pointer;font-size:14px;line-height:1;
+        transition:transform .15s, background-color .15s, border-color .15s, color .15s;
+        white-space:nowrap
+      }
       .chip:hover{transform:translateY(-1px)}
-      .chip.active{background:var(--chip-active);border-color:var(--chip-active);color:var(--chip-active-text)}
-      .chip.ghost{background:#f9fafb;border-style:dashed;color:#6b7280;cursor:default}
+      .chip.active{
+        background:var(--chip-active);
+        border-color:var(--chip-active);
+        color:var(--chip-active-text);
+        box-shadow:0 6px 14px rgba(0,102,51,.2)
+      }
+      .chip.ghost{background:#f3f6f4;border-style:dashed;color:#6b7280;cursor:default}
 
       .toolbar{display:flex;justify-content:flex-end;margin-top:8px}
-      .btn{border:1px solid var(--bd);background:#fff;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer}
+      .btn{
+        border:1px solid var(--bd);background:#fff;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer
+      }
+      .btn:hover{border-color:#d4e6dd}
       .btn:active{transform:translateY(1px)}
 
       .muted{color:var(--muted);margin-top:10px}
       .results{margin-top:10px}
-      .card{background:#fff;border:1px solid #eef2ff;border-radius:12px;padding:14px 16px;margin:10px 0;box-shadow:0 6px 14px rgba(2,6,23,.04)}
+      .card{
+        background:#fff;border:1px solid #eef2ff;border-radius:12px;padding:14px 16px;margin:10px 0;
+        box-shadow:0 6px 14px rgba(2,6,23,.04)
+      }
       .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-      .badge{background:#eef2ff;color:#4338ca;border-radius:999px;padding:6px 10px;font-size:12px}
+      .badge{
+        background:var(--badge-bg);color:var(--badge-ink);border-radius:999px;padding:6px 10px;font-size:12px
+      }
 
-      /* 데스크톱에서는 칩 간격을 약간만 키움 */
+      /* 데스크탑에서 칩 간격 약간 넓게 */
       @media (min-width: 900px){
-        .chips{gap:12px 12px}
+        .chips{gap:12px}
+        .brand .mark{width:72px;height:36px}
+        .brand h1{font-size:34px}
       }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <h1>지관서가</h1>
-      <p class="subtitle">북카페 도서검색</p>
 
+      <!-- ===== Brand Header (심볼 + 워드마크) ===== -->
+      <header class="brand" aria-label="지관서가 로고">
+        <!-- 심볼: pause(세로 네모 2개) + equal(가로 네모 2개) -->
+        <svg class="mark" viewBox="0 0 190 90" role="img" aria-label="지관서가 심볼">
+          <g fill="#006633">
+            <rect x="10"  y="10" width="30" height="70" rx="6"></rect>
+            <rect x="50"  y="10" width="30" height="70" rx="6"></rect>
+            <rect x="100" y="10" width="80" height="22" rx="6"></rect>
+            <rect x="100" y="58" width="80" height="22" rx="6"></rect>
+          </g>
+        </svg>
+        <div>
+          <h1>止觀書架지관서가</h1>
+          <div class="tagline">북카페 도서검색</div>
+        </div>
+      </header>
+
+      <!-- ===== App ===== -->
       <div id="app">로드 중…</div>
     </div>
 
     <script type="module">
       import render from "./src/App.js";
       render(document.getElementById("app"));
+
+      // 칩의 보조색(hover/active 보조톤)을 약하게 섞고 싶다면 다음처럼 살짝 테마를 조정할 수 있어요.
+      // document.documentElement.style.setProperty('--chip-active', '#27775d'); // 보조톤으로 바꾸기 예시
     </script>
   </body>
 </html>
