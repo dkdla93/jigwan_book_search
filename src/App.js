@@ -33,10 +33,11 @@ function chip(text, active = false, onClick = null, ghost = false) {
       type: "button",
       "aria-pressed": active,
       title: text,
+      ...(ghost ? { disabled: true } : {})
     },
     text
   );
-  if (onClick) c.addEventListener("click", onClick);
+  if (onClick && !ghost) c.addEventListener("click", onClick);
   return c;
 }
 function badge(text) { return el("span", { class: "badge" }, text || ""); }
@@ -58,7 +59,14 @@ function showError(root, msg) {
 // ---------------- main ----------------
 export default async function render(root) {
   // 상태
-  let state = { q: "", branch: "전체", subTheme: "전체", books: [], branches: [] };
+  let state = {
+    q: "",
+    branch: "전체",
+    subTheme: "전체",
+    searchMode: "title", // 'title' | 'theme' | 'sub' | 'all'
+    books: [],
+    branches: []
+  };
 
   // 데이터 로드
   try {
@@ -74,13 +82,21 @@ export default async function render(root) {
 
   // 뼈대 DOM
   root.innerHTML = "";
+
+  // 🔹 검색 대상 선택 칩 (검색창 '바로 위')
+  const modeRow = el(
+    "div",
+    { class: "row" },
+    el("div", { class: "label" }, "검색 대상"),
+    el("div", { class: "chips", id: "modeBar" })
+  );
+
   const searchInput = el("input", {
     class: "search",
-    placeholder: "도서명, 저자명, 출판사로 검색하세요",
+    placeholder: placeholderFor(state.searchMode),
     value: state.q,
   });
 
-  // 타이틀과 칩을 분리: label(윗줄) + chips(아랫줄)
   const branchRow = el(
     "div",
     { class: "row" },
@@ -103,7 +119,8 @@ export default async function render(root) {
   const results = el("div", { class: "results", id: "results" });
 
   root.append(
-    searchInput,
+    modeRow,                 // ← 검색 대상 칩
+    searchInput,             // ← 그 아래 검색창
     el("div", { style: "height:10px" }),
     branchRow,
     subRow,
@@ -122,15 +139,51 @@ export default async function render(root) {
     state.q = "";
     state.branch = "전체";
     state.subTheme = "전체";
+    state.searchMode = "title"; // 검색 대상도 기본으로 복귀
     searchInput.value = "";
+    searchInput.placeholder = placeholderFor(state.searchMode);
     paint();
   });
 
   // ------- 렌더러들 -------
   function paint() {
+    paintSearchModeChips();
     paintBranchChips();
     paintSubThemeChips();
     paintResults();
+  }
+
+  // 🔹 검색 대상 칩
+  function paintSearchModeChips() {
+    const bar = root.querySelector("#modeBar");
+    bar.innerHTML = "";
+
+    const opts = [
+      ["도서명", "title"],
+      ["인생테마", "theme"],
+      ["소분류", "sub"],
+      ["통합검색", "all"],
+    ];
+
+    opts.forEach(([label, key]) => {
+      bar.append(
+        chip(label, state.searchMode === key, () => {
+          state.searchMode = key;
+          searchInput.placeholder = placeholderFor(state.searchMode);
+          paintResults(); // 리스트만 즉시 갱신
+        })
+      );
+    });
+  }
+
+  function placeholderFor(mode) {
+    switch (mode) {
+      case "title": return "도서명으로 검색하세요";
+      case "theme": return "인생테마로 검색하세요 (예: 테마:명상)";
+      case "sub":   return "소분류로 검색하세요 (예: 명상(침묵), 그림책)";
+      case "all":   return "도서명/저자/출판사로 검색하세요";
+      default:      return "검색어를 입력하세요";
+    }
   }
 
   function paintBranchChips() {
@@ -159,7 +212,7 @@ export default async function render(root) {
     });
   }
 
-  // 지점별 소분류: branches.json과 실제 데이터의 교집합만 표시
+  // 지점별 소분류: 1) 정의된 전체 표시(없으면 회색), 2) 데이터에만 있는 건 뒤에 추가
   function paintSubThemeChips() {
     const bar = root.querySelector("#subBar");
     bar.innerHTML = "";
@@ -169,25 +222,25 @@ export default async function render(root) {
         ? null
         : state.branches.find((b) => (b.branch || b.name) === state.branch);
 
-    // 현재 지점의 도서에서 실제로 존재하는 facet(subTheme || theme)
-    const availableFacetSet = new Set(
-      state.books
-        .filter((bk) => norm(bk.branch) === norm(state.branch))
-        .map((bk) => norm(bk.subTheme) || norm(bk.theme))
-        .filter(Boolean)
-    );
-
-    // 1) branches.json의 subThemes 중에서 실제 존재하는 것만
-    let candidate = [];
-    if (active && Array.isArray(active.subThemes) && active.subThemes.length) {
-      candidate = active.subThemes.filter((st) => availableFacetSet.has(norm(st)));
-    }
-    // 2) 교집합이 비면, 데이터 기반 facet들로 대체
-    if (!candidate.length) {
-      candidate = Array.from(availableFacetSet).sort();
+    if (!active) {
+      bar.append(chip("전체", state.subTheme === "전체", () => {
+        state.subTheme = "전체";
+        paint();
+      }));
+      bar.append(chip("지점을 먼저 선택하세요", false, null, true));
+      return;
     }
 
-    // 항상 '전체' 먼저
+    // 현재 지점의 facet(subTheme || theme) 카운트
+    const inBranch = state.books.filter((bk) => norm(bk.branch) === norm(state.branch));
+    const facetCount = new Map();
+    inBranch.forEach((bk) => {
+      const f = norm(bk.subTheme) || norm(bk.theme);
+      if (!f) return;
+      facetCount.set(f, (facetCount.get(f) || 0) + 1);
+    });
+
+    // 1) 항상 '전체'
     bar.append(
       chip("전체", state.subTheme === "전체", () => {
         state.subTheme = "전체";
@@ -195,23 +248,48 @@ export default async function render(root) {
       })
     );
 
-    // 후보 칩 출력(없으면 가이드 칩)
-    if (candidate.length) {
-      candidate.forEach((st) => {
+    // 2) branches.json에 정의된 모든 소분류 (없으면 회색)
+    const curated = Array.isArray(active.subThemes) ? active.subThemes : [];
+    const seen = new Set();
+
+    curated.forEach((raw) => {
+      const label = String(raw);
+      const key = norm(label);
+      const hasBooks = facetCount.has(key);
+      seen.add(key);
+
+      bar.append(
+        chip(
+          label,
+          state.subTheme === label,
+          hasBooks
+            ? () => {
+                state.subTheme = label;
+                paint();
+              }
+            : null,
+          !hasBooks // 책이 없으면 비활성/회색
+        )
+      );
+    });
+
+    // 3) 데이터에만 존재하는 추가 facet들(중복 제외) 뒤에 붙이기
+    Array.from(facetCount.keys())
+      .filter((k) => !seen.has(k))
+      .sort()
+      .forEach((k) => {
+        const label = k;
         bar.append(
-          chip(st, state.subTheme === st, () => {
-            state.subTheme = st;
+          chip(label, state.subTheme === label, () => {
+            state.subTheme = label;
             paint();
           })
         );
       });
-    } else {
-      bar.append(chip("이 지점에는 소분류 데이터가 없습니다", false, null, true));
-    }
   }
 
   function paintResults() {
-    const { q, branch, subTheme, books } = state;
+    const { q, branch, subTheme, searchMode, books } = state;
     const s = norm(q).toLowerCase();
     const selBranch = norm(branch);
     const selSub = norm(subTheme);
@@ -224,18 +302,26 @@ export default async function render(root) {
       const bTheme = norm(b.theme);
       const bSub = norm(b.subTheme);
 
-      // 검색어: 제목/저자/출판사/지점/소분류(없으면 theme) 중 포함
-      const matchesQ = !s
-        ? true
-        : [bTitle, bAuthor, bPublisher, bBranch, bSub || bTheme].some((v) =>
-            v.toLowerCase().includes(s)
-          );
+      // 🔎 검색어 매칭: 모드별 필드 제한
+      let matchesQ = true;
+      if (s) {
+        if (searchMode === "title") {
+          matchesQ = bTitle.toLowerCase().includes(s);
+        } else if (searchMode === "theme") {
+          matchesQ = bTheme.toLowerCase().includes(s);
+        } else if (searchMode === "sub") {
+          const facet = (bSub || bTheme).toLowerCase();
+          matchesQ = facet.includes(s);
+        } else { // 'all' = 통합검색 → 도서명/저자/출판사
+          matchesQ = [bTitle, bAuthor, bPublisher].some(v => v.toLowerCase().includes(s));
+        }
+      }
 
       // 지점 필터
       const matchesBranch =
         selBranch === "전체" ? true : bBranch === selBranch;
 
-      // 소분류 필터: subTheme가 비면 theme로 대체
+      // 소분류 필터: subTheme 비면 theme로 대체
       const bookFacet = bSub || bTheme;
       const matchesSub =
         selSub === "전체" ? true : norm(bookFacet) === selSub;
