@@ -72,6 +72,60 @@ async function getCover(isbn){
   return url;
 }
 
+const detailCache = new Map();
+async function getBookDetail(isbn){
+  const key = (isbn || "").trim();
+  if (!key) throw new Error("ISBN이 없어 상세 정보를 불러올 수 없습니다.");
+  const cached = detailCache.get(key);
+  if (cached) return cached;
+
+  const loader = (async () => {
+    const r = await fetch(`/api/aladin-detail?isbn=${encodeURIComponent(key)}`);
+    if (!r.ok) throw new Error(`상세 정보 요청 실패(${r.status})`);
+    const data = await r.json();
+    if (!data?.ok) throw new Error(data?.error || "상세 정보를 불러오지 못했습니다.");
+    return data;
+  })();
+
+  detailCache.set(key, loader);
+
+  try {
+    const data = await loader;
+    detailCache.set(key, data);
+    return data;
+  } catch (err) {
+    detailCache.delete(key);
+    throw err;
+  }
+}
+
+function sanitizeDetailText(text){
+  if (!text) return "";
+  let s = String(text);
+  s = s.replace(/<\s*br\s*\/?\s*>/gi, "\n");
+  s = s.replace(/<\s*\/p\s*>/gi, "\n\n");
+  s = s.replace(/<[^>]+>/g, " ");
+  s = s.replace(/&nbsp;/gi, " ");
+  s = s.replace(/\r?\n\s*\r?\n/g, "\n\n");
+  return s.replace(/[\t\r]+/g, " ");
+}
+
+function truncateText(text, limit = 360){
+  if (!text) return "";
+  const trimmed = text.trim();
+  if (trimmed.length <= limit) return trimmed;
+  return trimmed.slice(0, limit).trimEnd() + "…";
+}
+
+function buildParagraphs(text){
+  if (!text) return [];
+  return text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => el("p", { class: "summary-text-line" }, line));
+}
+
 // ---------------- main ----------------
 export default async function render(root) {
   let state = {
@@ -211,26 +265,179 @@ export default async function render(root) {
 
     box.innerHTML = "";
     const imgs = [];
-    filtered.slice(0, 100).forEach((b) => {
+    filtered.slice(0, 100).forEach((b, idx) => {
       const badges = [norm(b.branch), norm(b.theme), norm(b.subTheme)].filter(Boolean);
+      const safeIsbn = (b.isbn || b.isbn13 || "").replace(/[^0-9Xx]/g, "");
+      const summaryId = `summary-${safeIsbn || idx}`;
 
-      const img = el("img", { class: "cover", alt: (b.title || "표지"), "data-isbn": (b.isbn || b.isbn13 || "").replace(/[^0-9Xx]/g,""), loading: "lazy" });
+      const img = el("img", {
+        class: "cover",
+        alt: b.title ? `${b.title} 표지` : "표지",
+        "data-isbn": safeIsbn,
+        loading: "lazy",
+      });
       imgs.push(img);
 
-      box.append(
-        el("div", { class: "card" },
-          el("div", { style: "display:flex;align-items:center;gap:12px" },
-            img,
-            el("div", {},
-              el("div", { style: "font-weight:700;font-size:18px" }, b.title || "제목 없음"),
-              el("div", { class: "muted", style: "margin-top:4px" },
-                `저자: ${b.author || "-"} · 출판사: ${b.publisher || "-"}${b.year ? ` (${b.year})` : ""}`
-              )
-            )
-          ),
-          el("div", { class: "badges" }, ...badges.map((t) => badge(t)))
-        )
+      const title = el("div", { class: "card-title" }, b.title || "제목 없음");
+      const meta = el(
+        "div",
+        { class: "card-meta muted" },
+        `저자: ${b.author || "-"} · 출판사: ${b.publisher || "-"}${b.year ? ` (${b.year})` : ""}`
       );
+      const infoCol = el("div", { class: "card-info" }, title, meta);
+      const mainInner = el("div", { class: "card-main-inner" }, img, infoCol);
+      const indicator = el("span", { class: "summary-indicator", "aria-hidden": "true" });
+
+      const main = el(
+        "div",
+        {
+          class: "card-main",
+          role: "button",
+          tabindex: "0",
+          "aria-expanded": "false",
+          "aria-controls": summaryId,
+        },
+        mainInner,
+        indicator
+      );
+
+      const detailIcon = el("span", { class: "detail-btn-icon", "aria-hidden": "true" });
+      detailIcon.innerHTML = `
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6" fill="none"></circle>
+          <rect x="11.25" y="10" width="1.5" height="6" rx="0.75" fill="currentColor"></rect>
+          <circle cx="12" cy="8" r="1.1" fill="currentColor"></circle>
+        </svg>
+      `;
+      const detailBtn = el(
+        "button",
+        {
+          class: "detail-btn",
+          type: "button",
+          title: "상세 페이지로 이동",
+          "aria-label": `${b.title || "해당 도서"} 상세 페이지 열기`,
+        },
+        detailIcon
+      );
+
+      if (!safeIsbn) {
+        detailBtn.disabled = true;
+        detailBtn.classList.add("disabled");
+        detailBtn.setAttribute("title", "ISBN 정보가 없어 상세 페이지를 열 수 없습니다.");
+      } else {
+        detailBtn.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          window.location.href = `detail.html?isbn=${encodeURIComponent(safeIsbn)}`;
+        });
+      }
+
+      const summaryContent = el("div", { class: "summary-content" });
+      const summary = el(
+        "div",
+        { class: "summary", id: summaryId, "aria-hidden": "true", role: "region", "aria-label": `${b.title || "도서"} 요약` },
+        summaryContent
+      );
+      summary.style.maxHeight = "0px";
+
+      const cardBadges = el("div", { class: "badges" }, ...badges.map((t) => badge(t)));
+      const topRow = el("div", { class: "card-top" }, main, detailBtn);
+      const card = el("div", { class: "card" }, topRow, summary, cardBadges);
+      box.append(card);
+
+      const setSummaryHeight = (open) => {
+        if (open) {
+          summary.classList.add("open");
+          summary.style.maxHeight = summary.scrollHeight + "px";
+          summary.setAttribute("aria-hidden", "false");
+        } else {
+          summary.classList.remove("open");
+          summary.style.maxHeight = "0px";
+          summary.setAttribute("aria-hidden", "true");
+        }
+      };
+
+      const renderDetail = async () => {
+        if (!safeIsbn) {
+          summaryContent.innerHTML = "";
+          summaryContent.append(el("p", { class: "summary-empty" }, "ISBN 정보가 없어 상세 요약을 볼 수 없습니다."));
+          summary.dataset.loaded = "error";
+          setSummaryHeight(true);
+          return;
+        }
+
+        if (summary.dataset.loaded === "done") {
+          setSummaryHeight(true);
+          return;
+        }
+
+        summary.dataset.loaded = "loading";
+        summaryContent.innerHTML = "";
+        summaryContent.append(el("p", { class: "summary-empty" }, "상세 정보를 불러오는 중…"));
+        setSummaryHeight(true);
+
+        try {
+          const detail = await getBookDetail(safeIsbn);
+          const sections = [];
+          const desc = truncateText(sanitizeDetailText(detail.description || ""));
+          if (desc) sections.push({ label: "소개", value: desc });
+          const toc = truncateText(sanitizeDetailText(detail.toc || ""));
+          if (toc) sections.push({ label: "목차", value: toc });
+
+          summaryContent.innerHTML = "";
+          if (!sections.length) {
+            summaryContent.append(el("p", { class: "summary-empty" }, "알라딘에서 제공하는 요약 정보가 없습니다."));
+          } else {
+            sections.forEach((section) => {
+              const block = el("div", { class: "summary-block" }, el("div", { class: "summary-title" }, section.label));
+              const paragraphs = buildParagraphs(section.value);
+              if (paragraphs.length) paragraphs.forEach((p) => block.append(p));
+              else block.append(el("p", { class: "summary-text-line" }, "내용이 제공되지 않았습니다."));
+              summaryContent.append(block);
+            });
+          }
+          summary.dataset.loaded = "done";
+        } catch (err) {
+          summary.dataset.loaded = "error";
+          summaryContent.innerHTML = "";
+          summaryContent.append(
+            el(
+              "p",
+              { class: "summary-error" },
+              `상세 정보를 불러오는 중 오류가 발생했습니다. ${err?.message ? `(${err.message})` : ""}`
+            )
+          );
+        } finally {
+          requestAnimationFrame(() => {
+            if (main.getAttribute("aria-expanded") === "true") {
+              setSummaryHeight(true);
+            }
+          });
+        }
+      };
+
+      const toggleSummary = () => {
+        const expanded = main.getAttribute("aria-expanded") === "true";
+        if (expanded) {
+          main.setAttribute("aria-expanded", "false");
+          main.classList.remove("expanded");
+          setSummaryHeight(false);
+        } else {
+          main.setAttribute("aria-expanded", "true");
+          main.classList.add("expanded");
+          renderDetail();
+        }
+      };
+
+      main.addEventListener("click", (ev) => {
+        if (ev.target.closest(".detail-btn")) return;
+        toggleSummary();
+      });
+      main.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" || ev.key === " ") {
+          ev.preventDefault();
+          toggleSummary();
+        }
+      });
     });
 
     // 표지 지연 로딩
