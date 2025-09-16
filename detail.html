@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#006633" />
+    <title>도서 상세보기 – 지관서가 도서검색</title>
+    <link
+      rel="icon"
+      href='data:image/svg+xml;utf8,
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 190 90">
+          <rect width="190" height="90" fill="white"/>
+          <g fill="%23006633">
+            <rect x="10"  y="10" width="30" height="70" rx="6"/>
+            <rect x="50"  y="10" width="30" height="70" rx="6"/>
+            <rect x="100" y="10" width="80" height="22" rx="6"/>
+            <rect x="100" y="58" width="80" height="22" rx="6"/>
+          </g>
+        </svg>' />
+    <style>
+      :root{
+        --brand:#006633;
+        --ink:#0b1324;
+        --muted:#6b7280;
+        --panel:#ffffff;
+        --bd:#e5e7eb;
+        --bg-grad-start:#f6faf8;
+        --bg-grad-end:#edf5f1;
+        --shadow:0 18px 38px rgba(2,6,23,.08);
+        --radius:18px;
+      }
+      *{box-sizing:border-box}
+      body{
+        margin:0;
+        color:var(--ink);
+        font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,나눔고딕,Noto Sans KR,sans-serif;
+        background:linear-gradient(180deg,var(--bg-grad-start),var(--bg-grad-end) 72%);
+        min-height:100vh;
+      }
+      a{color:inherit}
+      .wrap{max-width:880px;margin:24px auto;padding:0 16px 60px}
+      header.brand{display:flex;justify-content:center;align-items:flex-end;gap:14px;margin:8px 0 24px;line-height:0}
+      header.brand .hanja{height:48px;object-fit:contain}
+      header.brand .sub{font-weight:400;color:var(--ink);letter-spacing:-.2px;font-size:30px;transform:translateY(2px)}
+      @media (min-width: 900px){
+        header.brand .hanja{height:70px}
+        header.brand .sub{font-size:40px;transform:translateY(4px)}
+      }
+
+      #detail-app{min-height:200px}
+
+      .detail-message{background:#fff;border:1px solid #dbe7df;border-radius:var(--radius);padding:28px;text-align:center;color:var(--ink);box-shadow:var(--shadow)}
+      .detail-message.loading{color:var(--muted)}
+      .detail-message.error{border-color:#fecaca;color:#b91c1c;background:#fff5f5}
+
+      .detail-card{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);padding:32px 28px;display:flex;flex-direction:column;gap:28px}
+      .detail-header{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+      .detail-back{
+        border:1px solid var(--bd);
+        background:#fff;
+        color:var(--brand);
+        border-radius:999px;
+        padding:8px 18px;
+        font-size:14px;
+        font-weight:600;
+        cursor:pointer;
+        transition:background .2s ease,border-color .2s ease,box-shadow .2s ease;
+      }
+      .detail-back:hover{background:#f1f5f9;border-color:#d4e6dd}
+      .detail-back:focus{outline:2px solid rgba(0,102,51,.35);outline-offset:2px}
+      .detail-link{
+        border:1px solid #d4e6dd;
+        background:#f5fbf8;
+        color:var(--brand);
+        border-radius:999px;
+        padding:8px 18px;
+        font-size:14px;
+        font-weight:600;
+        text-decoration:none;
+        transition:background .2s ease,border-color .2s ease;
+      }
+      .detail-link:hover{background:#e9f5ee;border-color:var(--brand)}
+      .detail-link:focus{outline:2px solid rgba(0,102,51,.35);outline-offset:2px}
+
+      .detail-hero{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+      .detail-cover{width:160px;height:220px;object-fit:cover;border-radius:14px;border:1px solid #e2e8f0;background:#f1f5f9}
+      .detail-cover.placeholder{display:flex;align-items:center;justify-content:center;padding:18px;text-align:center;font-size:13px;color:var(--muted)}
+      .detail-info{flex:1;min-width:240px;display:flex;flex-direction:column;gap:16px}
+      .detail-title{font-size:28px;margin:0;color:var(--ink);word-break:keep-all}
+      .detail-meta{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;margin:0;font-size:15px}
+      .detail-term{font-weight:600;color:var(--muted);margin:0}
+      .detail-desc{margin:0;color:var(--ink)}
+
+      .detail-section{display:flex;flex-direction:column;gap:12px}
+      .detail-section-title{margin:0;font-size:20px;color:var(--brand);font-weight:700}
+      .detail-section-body{background:#f8fafc;border:1px solid #dfe7ef;border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px;font-size:15px;line-height:1.8;color:#1f2937}
+      .detail-paragraph{margin:0;white-space:pre-wrap}
+      .detail-empty{margin:0;color:var(--muted);font-style:italic}
+
+      @media (max-width:600px){
+        .detail-card{padding:24px 18px}
+        .detail-title{font-size:24px}
+        .detail-cover{width:130px;height:180px}
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="brand" aria-label="지관서가">
+        <img src="/bi/hanja.png" alt="止觀書架" class="hanja" decoding="async" />
+        <span class="sub" aria-hidden="true">도서검색</span>
+      </header>
+      <main id="detail-app"></main>
+    </div>
+    <script type="module" src="./src/Detail.js"></script>
+  </body>
+</html>
