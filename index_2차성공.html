@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#006633" />
+    <title>지관서가 도서검색</title>
+
+    <!-- 간단 파비콘(SVG data URI) -->
+    <link
+      rel="icon"
+      href='data:image/svg+xml;utf8,
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 190 90">
+          <rect width="190" height="90" fill="white"/>
+          <g fill="%23006633">
+            <rect x="10"  y="10" width="30" height="70" rx="6"/>
+            <rect x="50"  y="10" width="30" height="70" rx="6"/>
+            <rect x="100" y="10" width="80" height="22" rx="6"/>
+            <rect x="100" y="58" width="80" height="22" rx="6"/>
+          </g>
+        </svg>' />
+
+    <style>
+      :root{
+        --brand:#006633;           /* 진한 녹색(Primary) */
+        --ink:#0b1324;
+        --muted:#6b7280;
+        --panel:#ffffff;
+        --bd:#e5e7eb;
+        --bg-grad-start:#f6faf8;
+        --bg-grad-end:#edf5f1;
+        --shadow:0 10px 25px rgba(2,6,23,.06);
+        --radius:14px;
+
+        --chip:#fff;
+        --chip-active:var(--brand);
+        --chip-active-text:#fff;
+
+        --badge-bg:#e8f3ee;
+        --badge-ink:#0d5135;
+      }
+
+      *{box-sizing:border-box}
+      body{
+        margin:0;
+        color:var(--ink);
+        font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,나눔고딕,Noto Sans KR,sans-serif;
+        background:linear-gradient(180deg,var(--bg-grad-start),var(--bg-grad-end) 72%);
+      }
+
+      .wrap{max-width:980px;margin:24px auto;padding:0 16px}
+
+      /* ===== Brand Header: 한자 + '도서검색' 가로 결합 ===== */
+      .brand.word{
+        display:flex;justify-content:center;align-items:flex-end;gap:14px;
+        margin:8px 0 18px; line-height:0;
+      }
+      .word .hanja{ height:44px; width:auto; object-fit:contain; }
+      .word .sub{
+        line-height:1; transform: translateY(2px);
+        font-weight:400;            /* 더 얇게 */
+        color:var(--ink); letter-spacing:-.2px;
+        font-size:28px;             /* 더 크게(모바일) */
+      }
+      @media (min-width: 900px){
+        .word .hanja{ height:64px; }
+        .word .sub{ font-size:36px; transform: translateY(4px); }  /* 더 크게(데스크톱) */
+      }
+
+      /* ===== App Card ===== */
+      #app{
+        background:var(--panel);border-radius:var(--radius);
+        box-shadow:var(--shadow);padding:18px
+      }
+
+      /* ===== Search form + green submit button ===== */
+      .searchbar{ position:relative; display:block; }
+      .searchbar .search{
+        width:100%;height:52px;border-radius:12px;border:1px solid var(--bd);
+        padding:0 44px 0 14px; font-size:16px; outline:none;
+      }
+      .searchbar .search:focus{ border-color:#d4e6dd; box-shadow:0 0 0 3px rgba(0,102,51,.08); }
+
+      .search-btn{
+        position:absolute; right:8px; top:50%; transform:translateY(-50%);
+        height:36px; width:36px; border-radius:10px; border:1px solid var(--brand);
+        background:var(--brand); cursor:pointer; display:flex; align-items:center; justify-content:center;
+        padding:0;
+      }
+      .search-btn:hover{ filter: brightness(0.95); }
+      .search-btn svg{ width:18px; height:18px; fill:#ffffff; }
+
+      /* ===== Chips / Cards ===== */
+      .row{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin:16px 0 6px}
+      .row .label{color:#374151;font-weight:800;font-size:15px}
+      .chips{display:flex;flex-wrap:wrap;gap:10px}
+      .chip{
+        border:1px solid var(--bd);background:var(--chip);color:#1f2937;
+        padding:8px 14px;border-radius:999px;cursor:pointer;font-size:14px;line-height:1;
+        transition:transform .15s, background-color .15s, border-color .15s, color .15s;
+        white-space:nowrap
+      }
+      .chip:hover{transform:translateY(-1px)}
+      .chip.active{
+        background:var(--chip-active);
+        border-color:var(--chip-active);
+        color:var(--chip-active-text);
+        box-shadow:0 6px 14px rgba(0,102,51,.2)
+      }
+      .chip.ghost{background:#f3f6f4;border-style:dashed;color:#6b7280;cursor:default}
+
+      .results{margin-top:10px}
+      .card{
+        background:#fff;border:1px solid #eef2ff;border-radius:12px;padding:14px 16px;margin:10px 0;
+        box-shadow:0 6px 14px rgba(2,6,23,.04)
+      }
+      .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+      .badge{
+        background:var(--badge-bg);color:var(--badge-ink);border-radius:999px;padding:6px 10px;font-size:12px
+      }
+
+      /* ===== Reset 버튼(필터 초기화) 강제 스타일 ===== */
+      .btn-reset{
+        border:1px solid var(--bd);
+        background:#fff;
+        color:#1f2937;
+        border-radius:10px;
+        padding:8px 10px;
+        font-size:13px;
+        cursor:pointer;
+        transition:border-color .15s, box-shadow .15s, transform .02s;
+      }
+      .btn-reset:hover{ border-color:#d4e6dd; }
+      .btn-reset:active{ transform:translateY(1px); }
+      .btn-reset.brand{
+        border-color: var(--brand);
+        color: var(--brand);
+        background:#fff;
+      }
+      .btn-reset.brand:hover{
+        box-shadow:0 0 0 3px rgba(0,102,51,.08);
+      }
+      /* 책 표지 */
+      .cover{
+        width:52px;height:72px;object-fit:cover;border-radius:8px;background:#f1f5f9;border:1px solid #e5e7eb;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <!-- 한자 이미지 + '도서검색' 텍스트 (가로로 결합, 중앙 정렬) -->
+      <header class="brand word" aria-label="지관서가">
+        <img src="/bi/hanja.png" alt="止觀書架" class="hanja" decoding="async" />
+        <span class="sub" aria-hidden="true">도서검색</span>
+      </header>
+
+      <div id="app">로드 중…</div>
+    </div>
+
+    <script type="module">
+      import render from "./src/App.js";
+
+      // 앱 렌더 후: (1) 검색 입력을 form으로 래핑, (2) 필터 초기화 버튼 스타일 강제 적용
+      render(document.getElementById("app")).finally(() => {
+        const app = document.getElementById("app");
+
+        /* ------ (1) 검색 입력을 form으로 래핑 ------ */
+        const input = app.querySelector("input.search");
+        if (input && !(input.parentElement && input.parentElement.tagName === "FORM")) {
+          const form = document.createElement("form");
+          form.className = "searchbar";
+          form.setAttribute("role", "search");
+          form.setAttribute("autocomplete", "off");
+
+          input.parentNode.insertBefore(form, input);
+          form.appendChild(input);
+
+          const btn = document.createElement("button");
+          btn.className = "search-btn";
+          btn.type = "submit";
+          btn.setAttribute("aria-label", "검색");
+          btn.innerHTML = `
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M15.5 14h-.79l-.28-.27a6.471 6.471 0 0 0 1.57-4.23A6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
+            </svg>
+          `;
+          form.appendChild(btn);
+
+          // Enter/버튼 제출 → 기본 이동 막고 App.js의 input 핸들러만 재실행
+          form.addEventListener("submit", (e) => {
+            e.preventDefault();
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            input.focus();
+          });
+        }
+
+        /* ------ (2) '필터 초기화' 버튼에 브랜드 스타일 강제 ------ */
+        const applyResetStyle = (root=document) => {
+          const candidates = root.querySelectorAll('button, input[type="button"], input[type="reset"]');
+          candidates.forEach(el => {
+            const txt = (el.textContent || el.value || "").replace(/\s+/g, "");
+            // "필터 초기화" 텍스트 매칭
+            if (txt === "필터초기화") {
+              el.classList.add("btn-reset","brand");
+            }
+          });
+        };
+
+        applyResetStyle(app);
+
+        // 재렌더/동적 변동에도 유지되도록 감시
+        const mo = new MutationObserver(muts => {
+          for (const m of muts) {
+            if (m.type === "childList" && (m.addedNodes?.length || m.removedNodes?.length)) {
+              applyResetStyle(app);
+            }
+          }
+        });
+        mo.observe(app, { childList:true, subtree:true });
+      });
+    </script>
+  </body>
+</html>
