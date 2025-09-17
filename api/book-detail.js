@@ -1,6 +1,6 @@
 // /api/book-detail.js
 // 한 번의 호출로 알라딘 + Data4Library + OpenLibrary(+NLK 일부)를 모아 반환
-// ENV: ALADIN_TTBKEY, DATA4LIBRARY_KEY, (선택) NLK_API_KEY
+// ENV: ALADIN_TTBKEY, DATA4LIBRARY_KEY, (선택) NLK_KEY
 
 const J = (r) => r.json();
 const T = (r) => r.text();
@@ -99,7 +99,7 @@ export default async function handler(req, res) {
   }
 
   // ---------- 4) NLK(보강용) ----------
-  const nlk = process.env.NLK_API_KEY;
+  const nlk = process.env.NLK_KEY;
   if (nlk) {
     const q = new URLSearchParams({ key:nlk, detailSearch:"true", isbnOp:"isbn", isbnCode:isbn, pageNum:"1", pageSize:"1" });
     const xml = await tryFetchText(`https://www.nl.go.kr/NL/search/openApi/search.do?${q}`);
