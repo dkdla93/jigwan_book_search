@@ -1,296 +1,254 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#006633" />
-    <title>지관서가 도서검색</title>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>지관서가 도서검색</title>
 
-    <!-- 간단 파비콘(SVG data URI) -->
-    <link
-      rel="icon"
-      href='data:image/svg+xml;utf8,
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 190 90">
-          <rect width="190" height="90" fill="white"/>
-          <g fill="%23006633">
-            <rect x="10"  y="10" width="30" height="70" rx="6"/>
-            <rect x="50"  y="10" width="30" height="70" rx="6"/>
-            <rect x="100" y="10" width="80" height="22" rx="6"/>
-            <rect x="100" y="58" width="80" height="22" rx="6"/>
-          </g>
-        </svg>' />
+  <!-- 기본 스타일 (필요시 분리해도 됨) -->
+  <style>
+    :root{
+      --brand:#006633;            /* 진한 녹색(C90 M30 Y95 K30) */
+      --brand-2:#27755d;          /* 올리브 녹색(C65 M50 Y70 K0) */
+      --bg:#f6faf8;
+      --panel:#ffffff;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --line:#e5e7eb;
+      --chip:#f3f4f6;
+      --chip-text:#111827;
+      --chip-active:#e9f7f0;
+      --shadow:0 8px 28px rgba(0,0,0,.08);
+      --radius:14px;
+    }
 
-    <style>
-      :root{
-        --brand:#006633;           /* 진한 녹색(Primary) */
-        --brand-2:#27775d;         /* 보조 녹색(Secondary) */
-        --ink:#0b1324;
-        --muted:#6b7280;
-        --panel:#ffffff;
-        --bd:#e5e7eb;
-        --bg-grad-start:#f6faf8;
-        --bg-grad-end:#edf5f1;
-        --shadow:0 10px 25px rgba(2,6,23,.06);
-        --radius:14px;
+    /* reset-lite */
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", Arial, sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(1400px 500px at 50% -200px, #ecf9f2 0%, transparent 60%),
+        linear-gradient(#f8fbfa, #f1f8f5);
+      min-height:100%;
+    }
 
-        --chip:#fff;
-        --chip-active:var(--brand);
-        --chip-active-text:#fff;
+    .container{
+      max-width:1100px;
+      margin:40px auto 80px;
+      padding:0 20px;
+    }
 
-        --badge-bg:#e8f3ee;
-        --badge-ink:#0d5135;
-      }
+    .panel{
+      background:var(--panel);
+      border-radius:24px;
+      box-shadow:var(--shadow);
+      padding:28px clamp(16px, 4vw, 28px) 34px;
+    }
 
-      *{box-sizing:border-box}
-      body{
-        margin:0;
-        color:var(--ink);
-        font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,나눔고딕,Noto Sans KR,sans-serif;
-        background:linear-gradient(180deg,var(--bg-grad-start),var(--bg-grad-end) 72%);
-      }
+    /* Title */
+    .title-wrap{ text-align:center; margin-bottom:22px; }
+    .title{
+      margin:0;
+      letter-spacing:.06em;
+      font-weight:600;
+      font-size: clamp(28px, 6vw, 56px);
+      color:#0d1b1c;
+    }
+    .title small{
+      display:block;
+      margin-top:4px;
+      font-size: clamp(14px, 2.8vw, 22px);
+      color:#1d2a2a;
+      letter-spacing:.04em;
+    }
 
-      .wrap{max-width:980px;margin:24px auto;padding:0 16px}
+    /* Row label */
+    .row-label{
+      margin:22px 0 8px;
+      font-size:15px;
+      font-weight:700;
+      color:#1a2a26;
+    }
 
-      /* ===== Brand Header: 한자 + '도서검색' 가로 결합 ===== */
-      .brand.word{
-        display:flex;justify-content:center;align-items:flex-end;gap:14px;
-        margin:8px 0 18px; line-height:0;
-      }
-      .word .hanja{ height:44px; width:auto; object-fit:contain; }
-      .word .sub{
-        line-height:1; transform: translateY(2px);
-        font-weight:400;            /* 더 얇게 */
-        color:var(--ink); letter-spacing:-.2px;
-        font-size:28px;             /* 더 크게(모바일) */
-      }
-      @media (min-width: 900px){
-        .word .hanja{ height:64px; }
-        .word .sub{ font-size:36px; transform: translateY(4px); }  /* 더 크게(데스크톱) */
-      }
+    /* Chips */
+    .chip-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+    .chip{
+      appearance:none; border:0; cursor:pointer;
+      padding:10px 14px;
+      border-radius:999px;
+      background:var(--chip);
+      color:var(--chip-text);
+      font-size:14px; line-height:1;
+      transition:.18s ease;
+    }
+    .chip:hover{ filter:brightness(0.98) }
+    .chip.active{
+      background:var(--chip-active);
+      color:var(--brand);
+      outline:2px solid rgba(0,102,51,.15);
+    }
+    .chip.disabled{
+      cursor:not-allowed; opacity:.55;
+    }
+    .chip.ghost{
+      background:#f8faf9; color:var(--muted);
+      border:1px dashed #cfe2d9;
+    }
 
-      /* ===== App Card ===== */
-      #app{
-        background:var(--panel);border-radius:var(--radius);
-        box-shadow:var(--shadow);padding:18px
-      }
+    /* Searchbar */
+    .searchbar{
+      display:flex; align-items:center; gap:10px;
+      background:#fff; border:1px solid var(--line);
+      border-radius:999px; padding:10px 12px; margin-top:12px;
+    }
+    .searchbar input{
+      flex:1 1 auto; border:0; outline:none;
+      font-size:16px; padding:6px 2px; background:transparent;
+      color:var(--text);
+    }
+    .icon-btn{
+      display:inline-grid; place-items:center;
+      width:40px; height:40px; border:0; border-radius:999px;
+      color:#fff; background:var(--brand);
+      cursor:pointer;
+      transition:.2s ease;
+    }
+    .icon-btn:hover{ filter:brightness(.95) }
 
-      /* ===== Search form + green submit button (폼은 렌더 후 래핑) ===== */
-      .searchbar{ position:relative; display:block; }
-      .searchbar .search{
-        width:100%;height:52px;border-radius:12px;border:1px solid var(--bd);
-        padding:0 44px 0 14px; font-size:16px; outline:none;
-      }
-      .searchbar .search:focus{ border-color:#d4e6dd; box-shadow:0 0 0 3px rgba(0,102,51,.08); }
+    /* Meta + Results */
+    #meta{
+      margin:22px 0 6px;
+      color:var(--muted); font-size:14px;
+    }
 
-      .search-btn{
-        position:absolute; right:8px; top:50%; transform:translateY(-50%);
-        height:36px; width:36px; border-radius:10px; border:1px solid var(--brand);
-        background:var(--brand); cursor:pointer; display:flex; align-items:center; justify-content:center;
-        padding:0;
-      }
-      .search-btn:hover{ filter: brightness(0.95); }
-      .search-btn svg{ width:18px; height:18px; fill:#ffffff; }
+    .results{
+      display:grid; gap:12px;
+    }
 
-      /* ===== Chips / Buttons ===== */
-      .row{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin:16px 0 6px}
-      .row .label{color:#374151;font-weight:800;font-size:15px}
-      .chips{display:flex;flex-wrap:wrap;gap:10px}
-      .chip{
-        border:1px solid var(--bd);background:var(--chip);color:#1f2937;
-        padding:8px 14px;border-radius:999px;cursor:pointer;font-size:14px;line-height:1;
-        transition:transform .15s, background-color .15s, border-color .15s, color .15s;
-        white-space:nowrap
-      }
-      .chip:hover{transform:translateY(-1px)}
-      .chip.active{
-        background:var(--chip-active);
-        border-color:var(--chip-active);
-        color:var(--chip-active-text);
-        box-shadow:0 6px 14px rgba(0,102,51,.2)
-      }
-      .chip.ghost{background:#f3f6f4;border-style:dashed;color:#6b7280;cursor:default}
+    /* Card */
+    .card{
+      display:flex; gap:14px; align-items:center;
+      padding:14px 14px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:#fff;
+    }
+    .card-left{ width:54px; height:74px; flex:0 0 auto; }
+    .cover{
+      width:100%; height:100%; object-fit:cover;
+      border-radius:6px; background:#eff3f0;
+      border:1px solid #eef1ee;
+    }
+    .card-right{ min-width:0; }
+    .book-title{
+      font-size:16px; margin:2px 0 6px; font-weight:700;
+      color:#0e1d18; line-height:1.25;
+    }
+    .book-meta{ font-size:13px; color:var(--muted); }
+    .book-tags{ display:flex; gap:6px; margin-top:8px; }
+    .tag{
+      background:#f4faf7; color:var(--brand);
+      border:1px solid #e0efe8;
+      border-radius:999px; padding:4px 8px;
+      font-size:12px;
+    }
 
-      .toolbar{display:flex;justify-content:flex-end;margin-top:8px}
-      .btn{
-        border:1px solid var(--bd);background:#fff;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer
-      }
-      .btn:hover{border-color:#d4e6dd}
-      .btn:active{transform:translateY(1px)}
+    .empty{
+      padding:22px 12px; color:var(--muted);
+    }
 
-      .muted{color:var(--muted);margin-top:10px}
-      .results{margin-top:10px}
-      .card{
-        background:#fff;border:1px solid #eef2ff;border-radius:12px;padding:14px 16px;margin:10px 0;
-        box-shadow:0 6px 14px rgba(2,6,23,.04);
-        position:relative;
-      }
-      .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-      .badge{
-        background:var(--badge-bg);color:var(--badge-ink);border-radius:999px;padding:6px 10px;font-size:12px
-      }
+    /* Reset button (right) */
+    .reset-btn{
+      margin-left:auto; margin-top:16px;
+      display:inline-block;
+      background:#fff; color:var(--brand);
+      border:1px solid #cfe2d9;
+      border-radius:999px; padding:9px 14px;
+      font-size:14px; cursor:pointer;
+      transition:.18s ease;
+    }
+    .reset-btn:hover{
+      background:var(--chip-active);
+      border-color:#c9e7dd;
+    }
 
-      /* ===== 책 표지 썸네일 ===== */
-      .cover{
-        width:52px;height:72px;object-fit:cover;border-radius:8px;background:#f1f5f9;border:1px solid #e5e7eb;
-      }
+    /* Accessible-only */
+    .sr-only{
+      position:absolute; width:1px; height:1px; margin:-1px;
+      clip:rect(0 0 0 0); overflow:hidden; white-space:nowrap; border:0;
+      padding:0;
+    }
 
-      /* ===== 드롭다운 요약 ===== */
-      .summary {
-        margin-top:10px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#fff;
-        display:none; line-height:1.6; color:#334155;
-      }
-      .card.open .summary { display:block; }
-      .toc{ margin-top:14px; }
-      .toc li{ margin:4px 0; color:#334155; }
+    @media (min-width: 860px){
+      .panel{ padding:34px 34px 40px }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section id="app" class="panel">
+      <!-- App.js 가 이 안의 섹션들을 찾아 사용합니다. (없어도 자동 생성) -->
 
-      /* ===== 카드 우상단 상세 버튼 ===== */
-      .more-btn{
-        position:absolute; top:10px; right:10px; border:none; background:#065f46; color:#fff;
-        width:34px;height:34px;border-radius:9999px; display:flex; align-items:center; justify-content:center; cursor:pointer;
-      }
-      .more-btn:hover{ background:#047857; }
-
-      /* ===== 모달 ===== */
-      .modal-backdrop{
-        position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; z-index:50;
-      }
-      .modal{
-        width:min(860px, 92vw); max-height:88vh; overflow:auto; background:#fff; border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.35);
-        padding:24px;
-      }
-      .modal-header{ display:flex; align-items:center; justify-content:space-between; gap:16px; }
-      .modal-close{ border:none; background:#e2e8f0; width:34px; height:34px; border-radius:9999px; cursor:pointer; }
-      .modal-grid{ display:grid; grid-template-columns:120px 1fr; gap:18px; margin-top:12px; }
-      .modal .cover-lg{ width:110px; height:152px; object-fit:cover; border-radius:10px; border:1px solid #e5e7eb; background:#f1f5f9; }
-      .modal h3{ margin:4px 0 2px; font-size:20px; }
-      .kv{ color:#475569; margin-top:6px; }
-      .ext a{ color:#0369a1; margin-right:10px; }
-
-      /* ===== Reset 버튼(필터 초기화) 강제 스타일 (안전망) ===== */
-      .btn-reset{
-        border:1px solid var(--bd);
-        background:#fff;
-        color:#1f2937;
-        border-radius:10px;
-        padding:8px 10px;
-        font-size:13px;
-        cursor:pointer;
-        transition:border-color .15s, box-shadow .15s, transform .02s;
-      }
-      .btn-reset:hover{ border-color:#d4e6dd; }
-      .btn-reset:active{ transform:translateY(1px); }
-      .btn-reset.brand{
-        border-color: var(--brand);
-        color: var(--brand);
-        background:#fff;
-      }
-      .btn-reset.brand:hover{
-        box-shadow:0 0 0 3px rgba(0,102,51,.08);
-      }
-
-      /* 결과 영역이 가려지지 않도록 보강 */
-      .results{ 
-        display:block; 
-        margin-top:12px; 
-        min-height: 24px;   /* 비어 있어도 영역 유지 */
-      }
-      
-      /* 카드가 혹시 상위 요소의 레이어에 가려지는 것을 방지 */
-      .card{ 
-        display:block; 
-        position:relative; 
-        z-index: 0;
-      }
-      
-      /* 검색바 아래 여백을 명시적으로 추가 (버튼이 겹쳐서 가리는 일 방지) */
-      .searchbar{ margin-bottom: 8px; }
-
-    </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <!-- 한자 이미지 + '도서검색' 텍스트 (가로로 결합, 중앙 정렬) -->
-      <header class="brand word" aria-label="지관서가">
-        <img src="/bi/hanja.png" alt="止觀書架" class="hanja" decoding="async" />
-        <span class="sub" aria-hidden="true">도서검색</span>
-      </header>
-
-      <div id="app">로드 중…</div>
-    </div>
-
-    <!-- 상세 모달 루트 -->
-    <div id="modal-root" class="modal-backdrop" aria-hidden="true">
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-        <div class="modal-header">
-          <h2 id="modal-title" style="font-size:22px;margin:0">도서 상세정보</h2>
-          <button class="modal-close" aria-label="닫기">✕</button>
+      <!-- 1) 제목 영역 -->
+      <section id="header-sec">
+        <div class="title-wrap">
+          <h1 id="site-title" class="title">
+            止 觀 書 架
+            <small>도서검색</small>
+          </h1>
         </div>
-        <div id="modal-body"></div>
-      </div>
-    </div>
+      </section>
 
-    <script type="module">
-      import render from "./src/App.js";
+      <!-- 2) 검색 대상 + 검색창 -->
+      <section id="search-sec" aria-label="검색">
+        <div class="row-label">검색 대상</div>
+        <div id="searchModeRow" class="chip-row"><!-- App.js가 칩을 렌더링 --></div>
 
-      // 먼저 앱 렌더
-      render(document.getElementById("app")).finally(() => {
-        const app = document.getElementById("app");
-        const input = app.querySelector("input.search");  // App.js에서 붙인 검색 인풋
-        if (input) {
-          // 이미 래핑되어 있으면 중복 방지
-          if (!(input.parentElement && input.parentElement.tagName === "FORM")) {
-            // form 래핑 (role="search"로 접근성 향상, Enter 제출 가능)
-            const form = document.createElement("form");
-            form.className = "searchbar";
-            form.setAttribute("role", "search");
-            form.setAttribute("autocomplete", "off");
+        <form id="searchForm" class="searchbar" role="search">
+          <input id="searchInput" type="search" placeholder="도서명으로 검색하세요" autocomplete="off" />
+          <button id="searchBtn" type="submit" class="icon-btn" aria-label="검색">
+            <!-- magnifier -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </button>
+        </form>
+      </section>
 
-            input.parentNode.insertBefore(form, input);
-            form.appendChild(input);
+      <!-- 3) 지점(인생테마) -->
+      <section id="branch-sec" aria-label="지점(인생테마)">
+        <div class="row-label">지점(인생테마)</div>
+        <div id="branchchips" class="chip-row"><!-- App.js가 칩을 렌더링 --></div>
+      </section>
 
-            // 버튼 추가 (브랜드 초록색)
-            const btn = document.createElement("button");
-            btn.className = "search-btn";
-            btn.type = "submit";
-            btn.setAttribute("aria-label", "검색");
-            btn.innerHTML = `
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M15.5 14h-.79l-.28-.27a6.471 6.471 0 0 0 1.57-4.23A6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
-              </svg>
-            `;
-            form.appendChild(btn);
+      <!-- 4) 소분류 -->
+      <section id="sub-sec" aria-label="소분류">
+        <div class="row-label">소분류</div>
+        <div id="subchips" class="chip-row"><!-- App.js가 칩을 렌더링 --></div>
+      </section>
 
-            // Enter/버튼 제출 → 기본 이동 막고 App.js의 input 핸들러만 재실행
-            form.addEventListener("submit", (e) => {
-              e.preventDefault();
-              input.dispatchEvent(new Event("input", { bubbles: true }));
-              input.focus();
-            });
-          }
-        }
+      <!-- 5) 메타 + 결과 -->
+      <section id="meta-sec">
+        <div id="meta">총 0권의 도서가 검색되었습니다.</div>
+      </section>
 
-        // (안전망) '필터 초기화' 버튼이 시스템 기본으로 보일 경우 강제 스타일 부여
-        const applyResetStyle = (root=document) => {
-          const candidates = root.querySelectorAll('button, input[type="button"], input[type="reset"]');
-          candidates.forEach(el => {
-            const txt = (el.textContent || el.value || "").replace(/\s+/g, "");
-            if (txt === "필터초기화") {
-              el.classList.add("btn-reset","brand");
-            }
-          });
-        };
-        applyResetStyle(app);
+      <section id="list-sec" aria-live="polite">
+        <div id="results" class="results"><!-- App.js가 카드들을 렌더링 --></div>
 
-        // 재렌더/동적 변동에도 유지되도록 감시
-        const mo = new MutationObserver(muts => {
-          for (const m of muts) {
-            if (m.type === "childList" && (m.addedNodes?.length || m.removedNodes?.length)) {
-              applyResetStyle(app);
-            }
-          }
-        });
-        mo.observe(app, { childList:true, subtree:true });
-      });
-    </script>
-  </body>
+        <button id="resetFilters" type="button" class="reset-btn">필터 초기화</button>
+      </section>
+    </section>
+  </main>
+
+  <!-- 앱 스크립트: 경로가 배포 구조와 맞는지 한번만 확인 -->
+  <script defer src="./src/App.js"></script>
+</body>
 </html>
