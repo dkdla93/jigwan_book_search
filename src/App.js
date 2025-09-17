@@ -314,45 +314,71 @@ export default async function render(root) {
     });
   }
 
+
+  
+  // App.js 안의 paintResults 함수를 이 버전으로 교체하세요.
   function paintResults(){
     const { q, branch, subTheme, searchMode, books } = state;
-    const s = norm(q).toLowerCase(); const selBranch = norm(branch); const selSub = norm(subTheme);
-
+    const s = norm(q).toLowerCase(); 
+    const selBranch = norm(branch); 
+    const selSub = norm(subTheme);
+  
     const filtered = books.filter((b) => {
-      const bTitle = norm(b.title); const bAuthor = norm(b.author); const bPublisher = norm(b.publisher);
-      const bBranch = norm(b.branch); const bTheme = norm(b.theme); const bSub = norm(b.subTheme);
-
+      const bTitle = norm(b.title);
+      const bAuthor = norm(b.author);
+      const bPublisher = norm(b.publisher);
+      const bBranch = norm(b.branch);
+      const bTheme = norm(b.theme);
+      const bSub = norm(b.subTheme);
+  
       let matchesQ = true;
       if (s){
         if (searchMode==="title") matchesQ = bTitle.toLowerCase().includes(s);
         else if (searchMode==="theme") matchesQ = bTheme.toLowerCase().includes(s);
-        else if (searchMode==="sub") { const f=(bSub||bTheme).toLowerCase(); matchesQ = f.includes(s); }
+        else if (searchMode==="sub") { 
+          const f=(bSub||bTheme).toLowerCase(); 
+          matchesQ = f.includes(s); 
+        }
         else { // 'all' 통합검색: 도서명/저자/출판사/지점/소분류(없으면 테마)
           const f = (bSub || bTheme);
           matchesQ = [bTitle, bAuthor, bPublisher, bBranch, f].some(v => (v||"").toLowerCase().includes(s));
         }
       }
-
+  
       const matchesBranch = selBranch==="전체" ? true : bBranch===selBranch;
       const bookFacet = bSub || bTheme;
       const matchesSub = selSub==="전체" ? true : norm(bookFacet)===selSub;
-
+  
       return matchesQ && matchesBranch && matchesSub;
     });
-
+  
+    // 메타 갱신
     const metaEl = root.querySelector("#meta");
-    const box = root.querySelector("#results");
     metaEl.textContent = `총 ${filtered.length}권의 도서가 검색되었습니다.`;
-
-    box.innerHTML = "";
+  
+    // 결과 그리기 (한 번에 교체)
+    const box = root.querySelector("#results");
+    const frag = document.createDocumentFragment();
+  
+    if (filtered.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "조건에 맞는 도서가 없습니다.";
+      frag.appendChild(empty);
+      box.replaceChildren(frag);
+      return;
+    }
+  
     const imgs = [];
     filtered.slice(0, 100).forEach((b) => {
       const card = makeBookCard(b);
-      box.append(card);
+      frag.appendChild(card);
       const img = card.querySelector("img.cover");
       if (img) imgs.push(img);
     });
-
+  
+    box.replaceChildren(frag);
+  
     // 표지 지연 로딩
     lazyLoadCovers(imgs);
   }
