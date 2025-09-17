@@ -23,6 +23,7 @@
     <style>
       :root{
         --brand:#006633;           /* 진한 녹색(Primary) */
+        --brand-2:#27775d;         /* 보조 녹색(Secondary) */
         --ink:#0b1324;
         --muted:#6b7280;
         --panel:#ffffff;
@@ -73,7 +74,7 @@
         box-shadow:var(--shadow);padding:18px
       }
 
-      /* ===== Search form + green submit button ===== */
+      /* ===== Search form + green submit button (폼은 렌더 후 래핑) ===== */
       .searchbar{ position:relative; display:block; }
       .searchbar .search{
         width:100%;height:52px;border-radius:12px;border:1px solid var(--bd);
@@ -90,7 +91,7 @@
       .search-btn:hover{ filter: brightness(0.95); }
       .search-btn svg{ width:18px; height:18px; fill:#ffffff; }
 
-      /* ===== Chips / Cards ===== */
+      /* ===== Chips / Buttons ===== */
       .row{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin:16px 0 6px}
       .row .label{color:#374151;font-weight:800;font-size:15px}
       .chips{display:flex;flex-wrap:wrap;gap:10px}
@@ -109,17 +110,63 @@
       }
       .chip.ghost{background:#f3f6f4;border-style:dashed;color:#6b7280;cursor:default}
 
+      .toolbar{display:flex;justify-content:flex-end;margin-top:8px}
+      .btn{
+        border:1px solid var(--bd);background:#fff;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer
+      }
+      .btn:hover{border-color:#d4e6dd}
+      .btn:active{transform:translateY(1px)}
+
+      .muted{color:var(--muted);margin-top:10px}
       .results{margin-top:10px}
       .card{
         background:#fff;border:1px solid #eef2ff;border-radius:12px;padding:14px 16px;margin:10px 0;
-        box-shadow:0 6px 14px rgba(2,6,23,.04)
+        box-shadow:0 6px 14px rgba(2,6,23,.04);
+        position:relative;
       }
       .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
       .badge{
         background:var(--badge-bg);color:var(--badge-ink);border-radius:999px;padding:6px 10px;font-size:12px
       }
 
-      /* ===== Reset 버튼(필터 초기화) 강제 스타일 ===== */
+      /* ===== 책 표지 썸네일 ===== */
+      .cover{
+        width:52px;height:72px;object-fit:cover;border-radius:8px;background:#f1f5f9;border:1px solid #e5e7eb;
+      }
+
+      /* ===== 드롭다운 요약 ===== */
+      .summary {
+        margin-top:10px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#fff;
+        display:none; line-height:1.6; color:#334155;
+      }
+      .card.open .summary { display:block; }
+      .toc{ margin-top:14px; }
+      .toc li{ margin:4px 0; color:#334155; }
+
+      /* ===== 카드 우상단 상세 버튼 ===== */
+      .more-btn{
+        position:absolute; top:10px; right:10px; border:none; background:#065f46; color:#fff;
+        width:34px;height:34px;border-radius:9999px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+      }
+      .more-btn:hover{ background:#047857; }
+
+      /* ===== 모달 ===== */
+      .modal-backdrop{
+        position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; z-index:50;
+      }
+      .modal{
+        width:min(860px, 92vw); max-height:88vh; overflow:auto; background:#fff; border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.35);
+        padding:24px;
+      }
+      .modal-header{ display:flex; align-items:center; justify-content:space-between; gap:16px; }
+      .modal-close{ border:none; background:#e2e8f0; width:34px; height:34px; border-radius:9999px; cursor:pointer; }
+      .modal-grid{ display:grid; grid-template-columns:120px 1fr; gap:18px; margin-top:12px; }
+      .modal .cover-lg{ width:110px; height:152px; object-fit:cover; border-radius:10px; border:1px solid #e5e7eb; background:#f1f5f9; }
+      .modal h3{ margin:4px 0 2px; font-size:20px; }
+      .kv{ color:#475569; margin-top:6px; }
+      .ext a{ color:#0369a1; margin-right:10px; }
+
+      /* ===== Reset 버튼(필터 초기화) 강제 스타일 (안전망) ===== */
       .btn-reset{
         border:1px solid var(--bd);
         background:#fff;
@@ -140,47 +187,7 @@
       .btn-reset.brand:hover{
         box-shadow:0 0 0 3px rgba(0,102,51,.08);
       }
-      /* 책 표지 */
-      .cover{
-        width:52px;height:72px;object-fit:cover;border-radius:8px;background:#f1f5f9;border:1px solid #e5e7eb;
-      }
     </style>
-
-    
-    <style>
-      /* 드롭다운 요약 */
-      .summary {
-        margin-top:10px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#fff;
-        display:none; line-height:1.6; color:#334155;
-      }
-      .card.open .summary { display:block; }
-      
-      /* 우측 상단 상세 버튼 */
-      .more-btn{
-        position:absolute; top:10px; right:10px; border:none; background:#065f46; color:#fff;
-        width:34px;height:34px;border-radius:9999px; display:flex; align-items:center; justify-content:center; cursor:pointer;
-      }
-      .more-btn:hover{ background:#047857; }
-      
-      /* 모달 */
-      .modal-backdrop{
-        position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; z-index:50;
-      }
-      .modal{
-        width:min(860px, 92vw); max-height:88vh; overflow:auto; background:#fff; border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.35);
-        padding:24px;
-      }
-      .modal-header{ display:flex; align-items:center; justify-content:space-between; gap:16px; }
-      .modal-close{ border:none; background:#e2e8f0; width:34px; height:34px; border-radius:9999px; cursor:pointer; }
-      .modal-grid{ display:grid; grid-template-columns:120px 1fr; gap:18px; margin-top:12px; }
-      .modal .cover-lg{ width:110px; height:152px; object-fit:cover; border-radius:10px; border:1px solid #e5e7eb; background:#f1f5f9; }
-      .modal h3{ margin:4px 0 2px; font-size:20px; }
-      .kv{ color:#475569; margin-top:6px; }
-      .toc{ margin-top:14px; }
-      .toc li{ margin:4px 0; color:#334155; }
-      .ext a{ color:#0369a1; margin-right:10px; }
-    </style>
-
   </head>
   <body>
     <div class="wrap">
@@ -193,55 +200,67 @@
       <div id="app">로드 중…</div>
     </div>
 
+    <!-- 상세 모달 루트 -->
+    <div id="modal-root" class="modal-backdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-header">
+          <h2 id="modal-title" style="font-size:22px;margin:0">도서 상세정보</h2>
+          <button class="modal-close" aria-label="닫기">✕</button>
+        </div>
+        <div id="modal-body"></div>
+      </div>
+    </div>
+
     <script type="module">
       import render from "./src/App.js";
 
-      // 앱 렌더 후: (1) 검색 입력을 form으로 래핑, (2) 필터 초기화 버튼 스타일 강제 적용
+      // 먼저 앱 렌더
       render(document.getElementById("app")).finally(() => {
         const app = document.getElementById("app");
+        const input = app.querySelector("input.search");  // App.js에서 붙인 검색 인풋
+        if (input) {
+          // 이미 래핑되어 있으면 중복 방지
+          if (!(input.parentElement && input.parentElement.tagName === "FORM")) {
+            // form 래핑 (role="search"로 접근성 향상, Enter 제출 가능)
+            const form = document.createElement("form");
+            form.className = "searchbar";
+            form.setAttribute("role", "search");
+            form.setAttribute("autocomplete", "off");
 
-        /* ------ (1) 검색 입력을 form으로 래핑 ------ */
-        const input = app.querySelector("input.search");
-        if (input && !(input.parentElement && input.parentElement.tagName === "FORM")) {
-          const form = document.createElement("form");
-          form.className = "searchbar";
-          form.setAttribute("role", "search");
-          form.setAttribute("autocomplete", "off");
+            input.parentNode.insertBefore(form, input);
+            form.appendChild(input);
 
-          input.parentNode.insertBefore(form, input);
-          form.appendChild(input);
+            // 버튼 추가 (브랜드 초록색)
+            const btn = document.createElement("button");
+            btn.className = "search-btn";
+            btn.type = "submit";
+            btn.setAttribute("aria-label", "검색");
+            btn.innerHTML = `
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M15.5 14h-.79l-.28-.27a6.471 6.471 0 0 0 1.57-4.23A6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
+              </svg>
+            `;
+            form.appendChild(btn);
 
-          const btn = document.createElement("button");
-          btn.className = "search-btn";
-          btn.type = "submit";
-          btn.setAttribute("aria-label", "검색");
-          btn.innerHTML = `
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M15.5 14h-.79l-.28-.27a6.471 6.471 0 0 0 1.57-4.23A6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
-            </svg>
-          `;
-          form.appendChild(btn);
-
-          // Enter/버튼 제출 → 기본 이동 막고 App.js의 input 핸들러만 재실행
-          form.addEventListener("submit", (e) => {
-            e.preventDefault();
-            input.dispatchEvent(new Event("input", { bubbles: true }));
-            input.focus();
-          });
+            // Enter/버튼 제출 → 기본 이동 막고 App.js의 input 핸들러만 재실행
+            form.addEventListener("submit", (e) => {
+              e.preventDefault();
+              input.dispatchEvent(new Event("input", { bubbles: true }));
+              input.focus();
+            });
+          }
         }
 
-        /* ------ (2) '필터 초기화' 버튼에 브랜드 스타일 강제 ------ */
+        // (안전망) '필터 초기화' 버튼이 시스템 기본으로 보일 경우 강제 스타일 부여
         const applyResetStyle = (root=document) => {
           const candidates = root.querySelectorAll('button, input[type="button"], input[type="reset"]');
           candidates.forEach(el => {
             const txt = (el.textContent || el.value || "").replace(/\s+/g, "");
-            // "필터 초기화" 텍스트 매칭
             if (txt === "필터초기화") {
               el.classList.add("btn-reset","brand");
             }
           });
         };
-
         applyResetStyle(app);
 
         // 재렌더/동적 변동에도 유지되도록 감시
@@ -255,16 +274,5 @@
         mo.observe(app, { childList:true, subtree:true });
       });
     </script>
-
-    <div id="modal-root" class="modal-backdrop" aria-hidden="true">
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-        <div class="modal-header">
-          <h2 id="modal-title" style="font-size:22px;margin:0">도서 상세정보</h2>
-          <button class="modal-close" aria-label="닫기">✕</button>
-        </div>
-        <div id="modal-body"></div>
-      </div>
-    </div>
-    
   </body>
 </html>
