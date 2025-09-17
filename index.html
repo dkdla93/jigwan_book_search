@@ -145,6 +145,42 @@
         width:52px;height:72px;object-fit:cover;border-radius:8px;background:#f1f5f9;border:1px solid #e5e7eb;
       }
     </style>
+
+    
+    <style>
+      /* 드롭다운 요약 */
+      .summary {
+        margin-top:10px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#fff;
+        display:none; line-height:1.6; color:#334155;
+      }
+      .card.open .summary { display:block; }
+      
+      /* 우측 상단 상세 버튼 */
+      .more-btn{
+        position:absolute; top:10px; right:10px; border:none; background:#065f46; color:#fff;
+        width:34px;height:34px;border-radius:9999px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+      }
+      .more-btn:hover{ background:#047857; }
+      
+      /* 모달 */
+      .modal-backdrop{
+        position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; z-index:50;
+      }
+      .modal{
+        width:min(860px, 92vw); max-height:88vh; overflow:auto; background:#fff; border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.35);
+        padding:24px;
+      }
+      .modal-header{ display:flex; align-items:center; justify-content:space-between; gap:16px; }
+      .modal-close{ border:none; background:#e2e8f0; width:34px; height:34px; border-radius:9999px; cursor:pointer; }
+      .modal-grid{ display:grid; grid-template-columns:120px 1fr; gap:18px; margin-top:12px; }
+      .modal .cover-lg{ width:110px; height:152px; object-fit:cover; border-radius:10px; border:1px solid #e5e7eb; background:#f1f5f9; }
+      .modal h3{ margin:4px 0 2px; font-size:20px; }
+      .kv{ color:#475569; margin-top:6px; }
+      .toc{ margin-top:14px; }
+      .toc li{ margin:4px 0; color:#334155; }
+      .ext a{ color:#0369a1; margin-right:10px; }
+    </style>
+
   </head>
   <body>
     <div class="wrap">
@@ -219,5 +255,16 @@
         mo.observe(app, { childList:true, subtree:true });
       });
     </script>
+
+    <div id="modal-root" class="modal-backdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-header">
+          <h2 id="modal-title" style="font-size:22px;margin:0">도서 상세정보</h2>
+          <button class="modal-close" aria-label="닫기">✕</button>
+        </div>
+        <div id="modal-body"></div>
+      </div>
+    </div>
+    
   </body>
 </html>
