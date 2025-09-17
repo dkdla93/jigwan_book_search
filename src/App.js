@@ -1,445 +1,272 @@
-/* ----------------------------------------------------
- * 지관서가 북카페 검색 App
- * - 소분류 SSOT: /src/data/branches.json 만 사용
- * - books.json 은 필터링 대상 데이터 출처일 뿐,
- *   소분류 칩을 만들거나 목록을 생성하는 데는 절대 사용하지 않음.
- * - 결과 카드가 안 보이는 문제 방지:
- *   #results, #meta 컨테이너가 없으면 자동 생성하여 렌더.
- * ---------------------------------------------------- */
+// ---------------- fetch & helpers ----------------
+const fetchJSON = async (path) => {
+  const r = await fetch(path, { cache: "no-store" });
+  if (!r.ok) throw new Error(`${path} ${r.status}`);
+  return r.json();
+};
+const isArray = Array.isArray;
+const normalizeBooks = (x) => (isArray(x) ? x : (x && isArray(x.books)) ? x.books : []);
+const normalizeBranches = (x) => (isArray(x) ? x : (x && isArray(x.branches)) ? x.branches : []);
 
-(() => {
-  const $ = (sel, root = document) => root.querySelector(sel);
-  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  const el = (tag, cls, text) => {
-    const n = document.createElement(tag);
-    if (cls) n.className = cls;
-    if (text != null) n.textContent = text;
-    return n;
-  };
+// 공백/대소문자 차이 줄이기
+function norm(v) { return v == null ? "" : String(v).trim().replace(/\s+/g, " "); }
 
-  // 루트 패널(없어도 동작하게 document.body에 붙여줌)
-  const panel =
-    $('#app') ||
-    $('[data-app-root]') ||
-    $('.panel') ||
-    (function () {
-      const p = el('div', 'panel');
-      document.body.appendChild(p);
-      return p;
-    })();
+// element 유틸
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const k in attrs) node.setAttribute(k, attrs[k]);
+  children.flat(10).forEach((ch) => {
+    if (ch == null) return;
+    if (typeof ch === "string") node.appendChild(document.createTextNode(ch));
+    else node.appendChild(ch);
+  });
+  return node;
+}
+function chip(text, active = false, onClick = null, ghost = false) {
+  const c = el(
+    "button",
+    { class: `chip ${active ? "active" : ""} ${ghost ? "ghost" : ""}`, type: "button", "aria-pressed": active, title: text, ...(ghost ? { disabled: true } : {}) },
+    text
+  );
+  if (onClick && !ghost) c.addEventListener("click", onClick);
+  return c;
+}
+function badge(text) { return el("span", { class: "badge" }, text || ""); }
 
-  /* -------------------- 상태 ---------------------- */
-  const state = {
-    q: '',
-    searchMode: 'title', // 'title' | 'theme' | 'sub' | 'all'
-    branch: '전체',
-    subTheme: '전체',
+function showError(root, msg) {
+  root.innerHTML = "";
+  root.append(
+    el("div",
+      { style: "color:#b00020;white-space:pre-wrap;background:#fff;border:1px solid #fecaca;padding:12px;border-radius:10px" },
+      msg
+    )
+  );
+}
+
+// -------------- Cover cache (localStorage, 30일) --------------
+const LS_KEY = "aladin-cover-cache-v1";
+const TTL = 1000 * 60 * 60 * 24 * 30;
+function lsGetMap(){
+  try{ return new Map(Object.entries(JSON.parse(localStorage.getItem(LS_KEY) || "{}"))); }
+  catch{ return new Map(); }
+}
+function lsSetMap(m){
+  const obj = Object.fromEntries(m);
+  localStorage.setItem(LS_KEY, JSON.stringify(obj));
+}
+async function getCover(isbn){
+  if (!isbn) return "";
+  const map = lsGetMap();
+  const entry = map.get(isbn);
+  const now = Date.now();
+  if (entry && entry.url && (now - (entry.ts||0)) < TTL) return entry.url;
+
+  // serverless fetch
+  const r = await fetch(`/api/aladin-cover?isbn=${encodeURIComponent(isbn)}`);
+  const j = await r.json();
+  const url = j?.cover || "";
+  if (url){
+    map.set(isbn, { url, ts: now });
+    lsSetMap(map);
+  }
+  return url;
+}
+
+// ---------------- main ----------------
+export default async function render(root) {
+  let state = {
+    q: "",
+    branch: "전체",
+    subTheme: "전체",
+    searchMode: "title", // 'title' | 'theme' | 'sub' | 'all'
     books: [],
-    branches: [], // 원본
+    branches: [],
   };
 
-  // 지점 -> 소분류(SSOT)
-  const SUBS_BY_BRANCH = new Map();
-  const SUBS_DEFAULT = []; // '전체' 지점일 때 소분류 칩을 보여주지 않음(원하면 공통 넣으세요)
+  // 데이터 로드
+  try {
+    const [rawBooks, rawBranches] = await Promise.all([
+      fetchJSON("/src/data/books.json"),
+      fetchJSON("/src/data/branches.json"),
+    ]);
+    state.books = normalizeBooks(rawBooks);
+    state.branches = normalizeBranches(rawBranches);
+  } catch (e) {
+    return showError(root, "데이터 로드 오류: " + (e.message || e));
+  }
 
-  /* -------------------- DOM 보장 ------------------ */
-  // 섹션 컨테이너들이 없으면 만들어서 패널에 삽입
-  function ensureSection(id, titleText) {
-    let sec = $('#' + id);
-    if (!sec) {
-      sec = el('section');
-      sec.id = id;
-      const h = el('h3', 'sr-only', titleText || '');
-      sec.appendChild(h);
-      panel.appendChild(sec);
+  // 뼈대
+  root.innerHTML = "";
+  const modeRow = el("div", { class: "row" }, el("div", { class: "label" }, "검색 대상"), el("div", { class: "chips", id: "modeBar" }));
+  const searchInput = el("input", { class: "search", placeholder: placeholderFor(state.searchMode), value: state.q });
+  const branchRow = el("div", { class: "row" }, el("div", { class: "label" }, "지점(인생테마)"), el("div", { class: "chips", id: "branchBar" }));
+  const subRow = el("div", { class: "row" }, el("div", { class: "label" }, "소분류"), el("div", { class: "chips", id: "subBar" }));
+  const tools = el("div", { class: "toolbar" }, el("button", { class: "btn", id: "resetBtn" }, "필터 초기화"));
+  const info = el("div", { class: "muted", id: "meta" });
+  const results = el("div", { class: "results", id: "results" });
+
+  root.append(modeRow, searchInput, el("div", { style: "height:10px" }), branchRow, subRow, tools, el("div", { style: "height:6px" }), info, results);
+
+  // 이벤트
+  searchInput.addEventListener("input", () => { state.q = searchInput.value.trim(); paint(); });
+  tools.querySelector("#resetBtn").addEventListener("click", () => {
+    state.q = ""; state.branch = "전체"; state.subTheme = "전체"; state.searchMode = "title";
+    searchInput.value = ""; searchInput.placeholder = placeholderFor(state.searchMode);
+    paint();
+  });
+
+  function paint(){ paintSearchModeChips(); paintBranchChips(); paintSubThemeChips(); paintResults(); }
+
+  function paintSearchModeChips(){
+    const bar = root.querySelector("#modeBar"); bar.innerHTML = "";
+    [["도서명","title"],["인생테마","theme"],["소분류","sub"],["통합검색","all"]]
+    .forEach(([label,key]) => {
+      bar.append(chip(label, state.searchMode===key, () => {
+        state.searchMode = key;
+        searchInput.placeholder = placeholderFor(state.searchMode);
+        paintSearchModeChips();   // 즉시 칩 UI 반영
+        paintResults();
+        searchInput.focus();
+      }));
+    });
+  }
+
+  function placeholderFor(mode){
+    switch(mode){
+      case "title": return "도서명으로 검색하세요";
+      case "theme": return "인생테마로 검색하세요 (예: 테마:명상)";
+      case "sub":   return "소분류로 검색하세요 (예: 명상(침묵), 그림책)";
+      case "all":   return "도서명/저자/출판사/지점/소분류(테마)까지 통합검색";
+      default:      return "검색어를 입력하세요";
     }
-    return sec;
   }
 
-  const headerSec = ensureSection('header-sec', '검색 제목 영역');
-  const searchSec = ensureSection('search-sec', '검색 대상 및 검색창');
-  const branchSec = ensureSection('branch-sec', '지점(인생테마)');
-  const subSec = ensureSection('sub-sec', '소분류');
-  const metaSec = ensureSection('meta-sec', '검색 결과 요약');
-  const listSec = ensureSection('list-sec', '검색 결과 목록');
-
-  // 제목이 이미 HTML에 배치돼 있다면 그대로 두고, 없으면 생성
-  if (!$('#site-title', headerSec)) {
-    const titleWrap = el('div', 'title-wrap');
-    const title = el('h1', 'title', '止 觀 書 架 도서검색');
-    title.id = 'site-title';
-    titleWrap.appendChild(title);
-    headerSec.appendChild(titleWrap);
-  }
-
-  // 검색 대상 칩 행
-  let searchModeRow = $('#searchModeRow', searchSec);
-  if (!searchModeRow) {
-    searchModeRow = el('div', 'chip-row', null);
-    searchModeRow.id = 'searchModeRow';
-    const label = el('div', 'row-label', '검색 대상');
-    searchSec.appendChild(label);
-    searchSec.appendChild(searchModeRow);
-  }
-
-  // 검색 폼 (엔터 제출 가능)
-  let searchForm = $('#searchForm', searchSec);
-  if (!searchForm) {
-    searchForm = el('form', 'searchbar');
-    searchForm.id = 'searchForm';
-    const input = el('input');
-    input.id = 'searchInput';
-    input.type = 'search';
-    input.placeholder = '도서명으로 검색하세요';
-    input.autocomplete = 'off';
-
-    const btn = el('button', 'icon-btn');
-    btn.id = 'searchBtn';
-    btn.type = 'submit';
-    btn.setAttribute('aria-label', '검색');
-    btn.innerHTML =
-      '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>';
-
-    searchForm.appendChild(input);
-    searchForm.appendChild(btn);
-    searchSec.appendChild(searchForm);
-  }
-  const searchInput = $('#searchInput');
-  const searchBtn = $('#searchBtn');
-
-  // 지점 칩 행
-  let branchRow = $('#branchchips', branchSec);
-  if (!branchRow) {
-    const label = el('div', 'row-label', '지점(인생테마)');
-    branchRow = el('div', 'chip-row');
-    branchRow.id = 'branchchips';
-    branchSec.appendChild(label);
-    branchSec.appendChild(branchRow);
-  }
-
-  // 소분류 칩 행
-  let subRow = $('#subchips', subSec);
-  if (!subRow) {
-    const label = el('div', 'row-label', '소분류');
-    subRow = el('div', 'chip-row');
-    subRow.id = 'subchips';
-    subSec.appendChild(label);
-    subSec.appendChild(subRow);
-  }
-
-  // 메타/결과 컨테이너 보장
-  let meta = $('#meta', metaSec);
-  if (!meta) {
-    meta = el('div', 'meta');
-    meta.id = 'meta';
-    metaSec.appendChild(meta);
-  }
-
-  let results = $('#results', listSec);
-  if (!results) {
-    results = el('div', 'results');
-    results.id = 'results';
-    // 결과 영역이 레이아웃에 가려지지 않도록 안전 장치
-    results.style.display = 'block';
-    results.style.minHeight = '24px';
-    listSec.appendChild(results);
-  }
-
-  // 필터 초기화 버튼 보장(우측 하단)
-  let resetBtn = $('#resetFilters');
-  if (!resetBtn) {
-    resetBtn = el('button', 'reset-btn', '필터 초기화');
-    resetBtn.id = 'resetFilters';
-    resetBtn.type = 'button';
-    listSec.appendChild(resetBtn);
-  }
-
-  /* -------------------- 칩 컴포넌트 ------------------ */
-  function makeChip(text, active, onClick, disabled = false) {
-    const c = el('button', 'chip', text);
-    if (active) c.classList.add('active');
-    if (disabled) c.classList.add('disabled');
-    c.type = 'button';
-    if (!disabled) c.addEventListener('click', onClick);
-    return c;
-  }
-
-  /* -------------------- 렌더러 ---------------------- */
-  function renderSearchModeRow() {
-    searchModeRow.innerHTML = '';
-    const modes = [
-      { key: 'title', label: '도서명', placeholder: '도서명으로 검색하세요' },
-      { key: 'theme', label: '인생테마', placeholder: '인생테마로 검색하세요' },
-      { key: 'sub', label: '소분류', placeholder: '소분류로 검색하세요 (예: 명상(침묵), 그림책)' },
-      { key: 'all', label: '통합검색', placeholder: '도서명/저자/출판사/지점/소분류' },
-    ];
-    modes.forEach((m) => {
-      searchModeRow.appendChild(
-        makeChip(
-          m.label,
-          state.searchMode === m.key,
-          () => {
-            state.searchMode = m.key;
-            // 플레이스홀더 즉시 반영
-            if (searchInput) searchInput.placeholder = m.placeholder;
-            paintResults();
-            // 칩 상태 갱신
-            renderSearchModeRow();
-          },
-          false
-        )
-      );
-    });
-
-    // 초기 placeholder 동기화
-    const cur = modes.find((x) => x.key === state.searchMode);
-    if (cur && searchInput) searchInput.placeholder = cur.placeholder;
-  }
-
-  function renderBranchRow() {
-    branchRow.innerHTML = '';
-
-    // '전체' 칩
-    branchRow.appendChild(
-      makeChip('전체', state.branch === '전체', () => {
-        state.branch = '전체';
-        state.subTheme = '전체'; // 지점 바꾸면 소분류 초기화
-        paintResults();
-        renderSubRow();
-        renderBranchRow();
-      })
-    );
-
+  function paintBranchChips(){
+    const bar = root.querySelector("#branchBar"); bar.innerHTML = "";
+    bar.append(chip("전체", state.branch==="전체", () => { state.branch="전체"; state.subTheme="전체"; paint(); }));
     state.branches.forEach((b) => {
-      branchRow.appendChild(
-        makeChip(b.branch, state.branch === b.branch, () => {
-          state.branch = b.branch;
-          state.subTheme = '전체'; // 지점 바꾸면 소분류 초기화
-          paintResults();
-          renderSubRow();
-          renderBranchRow();
-        })
-      );
+      const name = b.branch || b.name || ""; const theme = b.lifeTheme || b.theme || "";
+      const label = theme ? `${name} (${theme})` : name;
+      bar.append(chip(label, state.branch===name, () => { state.branch=name; state.subTheme="전체"; paint(); }));
     });
   }
 
-  function renderSubRow() {
-    subRow.innerHTML = '';
+  function paintSubThemeChips(){
+    const bar = root.querySelector("#subBar"); bar.innerHTML = "";
+    const active = state.branch==="전체" ? null : state.branches.find((b)=> (b.branch||b.name)===state.branch);
 
-    // '전체' 칩
-    subRow.appendChild(
-      makeChip('전체', state.subTheme === '전체', () => {
-        state.subTheme = '전체';
-        paintResults();
-        renderSubRow();
-      })
-    );
-
-    // '전체' 지점이면 안내 칩 하나만(선택 UX 명확)
-    if (state.branch === '전체') {
-      const hint = makeChip('지점을 먼저 선택하세요', false, () => {}, true);
-      hint.classList.add('ghost');
-      subRow.appendChild(hint);
+    if (!active){
+      bar.append(chip("전체", state.subTheme==="전체", () => { state.subTheme="전체"; paint(); }));
+      bar.append(chip("지점을 먼저 선택하세요", false, null, true));
       return;
     }
 
-    const allow = SUBS_BY_BRANCH.get(state.branch) || [];
-    allow.forEach((sub) => {
-      subRow.appendChild(
-        makeChip(sub, state.subTheme === sub, () => {
-          state.subTheme = sub;
-          paintResults();
-          renderSubRow();
-        })
-      );
+    const inBranch = state.books.filter((bk)=> norm(bk.branch)===norm(state.branch));
+    const facetCount = new Map();
+    inBranch.forEach((bk)=>{ const f = norm(bk.subTheme) || norm(bk.theme); if (!f) return; facetCount.set(f,(facetCount.get(f)||0)+1); });
+
+    bar.append(chip("전체", state.subTheme==="전체", () => { state.subTheme="전체"; paint(); }));
+
+    const curated = Array.isArray(active.subThemes) ? active.subThemes : [];
+    const seen = new Set();
+    curated.forEach((raw) => {
+      const label = String(raw); const key = norm(label); const hasBooks = facetCount.has(key); seen.add(key);
+      bar.append(chip(label, state.subTheme===label, hasBooks ? () => { state.subTheme=label; paint(); } : null, !hasBooks));
     });
 
-    // 현재 선택된 소분류가 허용집합에 없다면 자동 리셋
-    if (state.subTheme !== '전체' && !allow.includes(state.subTheme)) {
-      state.subTheme = '전체';
-      paintResults();
-    }
-  }
-
-  function makeBookCard(b) {
-    const card = el('article', 'card');
-
-    const left = el('div', 'card-left');
-    const img = el('img', 'cover');
-    img.alt = `${b.title} 표지`;
-    img.loading = 'lazy';
-    // (표지는 추후 알라딘/국립중도서관 API로 주입 가능. 지금은 기본 이미지)
-    img.src = b.cover || '/cover-placeholder.png';
-    left.appendChild(img);
-
-    const right = el('div', 'card-right');
-    const ttl = el('h4', 'book-title', b.title || '');
-    const meta1 = el(
-      'div',
-      'book-meta',
-      `저자: ${b.author || '-'} · 출판사: ${b.publisher || '-'} · 연도: ${b.year || '-'}`
-    );
-    const tags = el('div', 'book-tags', null);
-
-    const tBranch = el('span', 'tag', b.branch || '-');
-    const tSub = el('span', 'tag', b.subTheme || b.theme || '-');
-    tags.appendChild(tBranch);
-    tags.appendChild(tSub);
-
-    right.appendChild(ttl);
-    right.appendChild(meta1);
-    right.appendChild(tags);
-
-    card.appendChild(left);
-    card.appendChild(right);
-    return card;
-  }
-
-  function lazyLoadCovers(imgs) {
-    if (!('IntersectionObserver' in window)) return;
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((e) => {
-        if (e.isIntersecting) {
-          const t = e.target;
-          const src = t.getAttribute('data-src');
-          if (src) t.src = src;
-          io.unobserve(t);
-        }
-      });
+    Array.from(facetCount.keys()).filter((k)=>!seen.has(k)).sort().forEach((k)=>{
+      bar.append(chip(k, state.subTheme===k, () => { state.subTheme=k; paint(); }));
     });
-    imgs.forEach((img) => io.observe(img));
   }
 
-  function paintResults() {
-    const s = (state.q || '').trim().toLowerCase();
-    const mode = state.searchMode;
-    const selBranch = (state.branch || '전체').trim();
-    const selSub = (state.subTheme || '전체').trim();
+  function paintResults(){
+    const { q, branch, subTheme, searchMode, books } = state;
+    const s = norm(q).toLowerCase(); const selBranch = norm(branch); const selSub = norm(subTheme);
 
-    const filtered = state.books.filter((b) => {
-      // 1) 검색어
+    const filtered = books.filter((b) => {
+      const bTitle = norm(b.title); const bAuthor = norm(b.author); const bPublisher = norm(b.publisher);
+      const bBranch = norm(b.branch); const bTheme = norm(b.theme); const bSub = norm(b.subTheme);
+
       let matchesQ = true;
-      if (s) {
-        const title = (b.title || '').toLowerCase();
-        const theme = (b.theme || '').toLowerCase();
-        const sub = (b.subTheme || '').toLowerCase();
-        const auth = (b.author || '').toLowerCase();
-        const pub = (b.publisher || '').toLowerCase();
-        const br = (b.branch || '').toLowerCase();
-
-        if (mode === 'title') matchesQ = title.includes(s);
-        else if (mode === 'theme') matchesQ = theme.includes(s);
-        else if (mode === 'sub') matchesQ = sub.includes(s);
-        else {
-          // 'all' 통합: 도서명/저자/출판사/지점/소분류(없으면 테마)
-          matchesQ = [title, auth, pub, br, sub || theme].some((v) => v.includes(s));
+      if (s){
+        if (searchMode==="title") matchesQ = bTitle.toLowerCase().includes(s);
+        else if (searchMode==="theme") matchesQ = bTheme.toLowerCase().includes(s);
+        else if (searchMode==="sub") { const f=(bSub||bTheme).toLowerCase(); matchesQ = f.includes(s); }
+        else { // all
+          const f = (bSub || bTheme);
+          matchesQ = [bTitle, bAuthor, bPublisher, bBranch, f].some(v => (v||"").toLowerCase().includes(s));
         }
       }
 
-      // 2) 지점
-      const matchesBranch = selBranch === '전체' ? true : (b.branch || '') === selBranch;
-
-      // 3) 소분류 (SSOT 기준으로 정확 일치. 레거시 대비로 theme fallback 한 줄 유지)
-      let matchesSub = true;
-      if (selSub !== '전체') {
-        const facet = b.subTheme || b.theme || '';
-        matchesSub = facet === selSub;
-      }
+      const matchesBranch = selBranch==="전체" ? true : bBranch===selBranch;
+      const bookFacet = bSub || bTheme;
+      const matchesSub = selSub==="전체" ? true : norm(bookFacet)===selSub;
 
       return matchesQ && matchesBranch && matchesSub;
     });
 
-    // 메타 갱신
-    meta.textContent = `총 ${filtered.length}권의 도서가 검색되었습니다.`;
+    const metaEl = root.querySelector("#meta");
+    const box = root.querySelector("#results");
+    metaEl.textContent = `총 ${filtered.length}권의 도서가 검색되었습니다.`;
 
-    // 결과 렌더(공백/가림 방지: 한번에 교체)
-    const frag = document.createDocumentFragment();
+    box.innerHTML = "";
     const imgs = [];
-    if (filtered.length === 0) {
-      const empty = el('div', 'empty', '조건에 맞는 도서가 없습니다.');
-      frag.appendChild(empty);
-    } else {
-      filtered.forEach((b) => {
-        const card = makeBookCard(b);
-        frag.appendChild(card);
-        const img = card.querySelector('img.cover');
-        if (img) imgs.push(img);
-      });
-    }
-    results.replaceChildren(frag);
+    filtered.slice(0, 100).forEach((b) => {
+      const badges = [norm(b.branch), norm(b.theme), norm(b.subTheme)].filter(Boolean);
 
-    // 레이아웃/가림 방지 안전 설정
-    results.style.display = 'block';
+      const img = el("img", { class: "cover", alt: (b.title || "표지"), "data-isbn": (b.isbn || b.isbn13 || "").replace(/[^0-9Xx]/g,""), loading: "lazy" });
+      imgs.push(img);
 
+      box.append(
+        el("div", { class: "card" },
+          el("div", { style: "display:flex;align-items:center;gap:12px" },
+            img,
+            el("div", {},
+              el("div", { style: "font-weight:700;font-size:18px" }, b.title || "제목 없음"),
+              el("div", { class: "muted", style: "margin-top:4px" },
+                `저자: ${b.author || "-"} · 출판사: ${b.publisher || "-"}${b.year ? ` (${b.year})` : ""}`
+              )
+            )
+          ),
+          el("div", { class: "badges" }, ...badges.map((t) => badge(t)))
+        )
+      );
+    });
+
+    // 표지 지연 로딩
     lazyLoadCovers(imgs);
   }
 
-  /* -------------------- 이벤트 ---------------------- */
-  // 검색 폼(엔터 제출)
-  searchForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    state.q = (searchInput.value || '').trim();
-    paintResults();
-  });
+  function lazyLoadCovers(imgs){
+    if (!imgs.length) return;
 
-  // 입력 도중에도 실시간 반영 원하면 아래 주석 해제
-  // searchInput.addEventListener('input', (e) => {
-  //   state.q = (e.target.value || '').trim();
-  //   paintResults();
-  // });
+    const load = async (img) => {
+      const isbn = img.getAttribute("data-isbn");
+      if (!isbn) return;
+      const url = await getCover(isbn);
+      if (url) {
+        img.src = url;
+        img.onerror = () => { img.style.display="none"; }; // 실패시 숨김
+      } else {
+        img.style.display = "none";
+      }
+    };
 
-  resetBtn.addEventListener('click', () => {
-    state.q = '';
-    state.searchMode = 'title';
-    state.branch = '전체';
-    state.subTheme = '전체';
-    if (searchInput) searchInput.value = '';
-    renderSearchModeRow();
-    renderBranchRow();
-    renderSubRow();
-    paintResults();
-  });
-
-  /* -------------------- 데이터 로딩 ------------------ */
-  async function boot() {
-    try {
-      const [booksRes, branchesRes] = await Promise.all([
-        fetch('/src/data/books.json', { cache: 'no-store' }),
-        fetch('/src/data/branches.json', { cache: 'no-store' }),
-      ]);
-      if (!booksRes.ok) throw new Error('books.json 로드 실패');
-      if (!branchesRes.ok) throw new Error('branches.json 로드 실패');
-
-      const books = await booksRes.json();
-      const branches = await branchesRes.json();
-
-      state.books = Array.isArray(books) ? books : [];
-      state.branches = Array.isArray(branches) ? branches : [];
-
-      // SSOT: 지점 -> 소분류 맵 구성
-      SUBS_BY_BRANCH.clear();
-      state.branches.forEach((row) => {
-        const key = (row.branch || '').trim();
-        const subs = Array.isArray(row.subThemes) ? row.subThemes.map((s) => (s || '').trim()) : [];
-        if (key) SUBS_BY_BRANCH.set(key, subs);
-      });
-
-      // 초기 렌더
-      renderSearchModeRow();
-      renderBranchRow();
-      renderSubRow();
-      paintResults();
-    } catch (err) {
-      console.error(err);
-      meta.textContent = '데이터를 불러오는 중 오류가 발생했습니다.';
-      results.replaceChildren(el('div', 'empty', '데이터 로드 실패'));
+    if ("IntersectionObserver" in window){
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting){
+            io.unobserve(e.target);
+            load(e.target);
+          }
+        });
+      }, { rootMargin: "200px 0px" });
+      imgs.forEach(img => io.observe(img));
+    } else {
+      imgs.forEach(load);
     }
   }
 
-  // DOM 준비 후 기동
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-  }
-})();
+  // 최초 렌더
+  paint();
+}
