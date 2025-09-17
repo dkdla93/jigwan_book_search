@@ -144,6 +144,41 @@
       .cover{
         width:52px;height:72px;object-fit:cover;border-radius:8px;background:#f1f5f9;border:1px solid #e5e7eb;
       }
+      
+      /* ==== detail drawer / modal (최소 스타일) ==== */
+      .book__actions {
+        position: absolute; top: 12px; right: 12px; display: flex; gap: 8px;
+      }
+      .icon-btn {
+        width: 28px; height: 28px; border-radius: 50%; display: inline-flex;
+        align-items: center; justify-content: center;
+        background: #0B6B3A; color: #fff; border: 0; cursor: pointer;
+      }
+      .icon-btn:focus { outline: 2px solid #0B6B3A66; outline-offset: 2px; }
+      .book__drawer {
+        margin-top: 10px; background: #f8faf9; border: 1px solid #e5efe9;
+        border-radius: 10px; padding: 14px;
+      }
+      .book__drawer .sec { margin: 6px 0; }
+      .book__drawer .label { display: inline-block; font-weight: 600; margin-right: 8px; color:#0B6B3A; }
+      
+      .modal.hidden { display: none; }
+      .modal { position: fixed; inset: 0; z-index: 50; }
+      .modal__backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.35); }
+      .modal__panel {
+        position: relative; max-width: 760px; width: calc(100% - 32px);
+        margin: 6vh auto; background: #fff; border-radius: 14px; padding: 20px 22px 22px;
+        box-shadow: 0 12px 50px rgba(0,0,0,.2); max-height: 88vh; overflow: auto;
+      }
+      .modal__close {
+        position: absolute; right: 12px; top: 12px; border:0; background: transparent;
+        font-size: 28px; line-height: 1; cursor: pointer; color:#2b2b2b;
+      }
+      .modal__body h3 { margin: 0 0 6px; font-size: 18px; }
+      .modal__body .meta { color:#495057; font-size: 13px; margin-bottom: 12px; }
+      .modal__body .block { margin: 12px 0; }
+      .modal__body .block .head { font-weight: 700; color:#0B6B3A; margin-bottom: 6px; }
+            
     </style>
   </head>
   <body>
@@ -219,5 +254,17 @@
         mo.observe(app, { childList:true, subtree:true });
       });
     </script>
+    
+    <!-- 상세 모달 (전역 단 1개) -->
+    <div id="detailModal" class="modal hidden" aria-hidden="true" aria-modal="true" role="dialog">
+      <div class="modal__backdrop" data-close="1"></div>
+      <div class="modal__panel" role="document">
+        <button class="modal__close" aria-label="닫기" data-close="1">×</button>
+        <div id="detailModalBody" class="modal__body">
+          <!-- JS로 채워짐 -->
+        </div>
+      </div>
+    </div>
+    
   </body>
 </html>
