@@ -1,3 +1,5 @@
+// src/App.js
+
 // ---------------- fetch & helpers ----------------
 const fetchJSON = async (path) => {
   const r = await fetch(path, { cache: "no-store" });
@@ -43,7 +45,7 @@ function showError(root, msg) {
   );
 }
 
-// -------------- Cover cache (localStorage, 30일) --------------
+// -------------- Aladin cover cache (localStorage, 30일) --------------
 const LS_KEY = "aladin-cover-cache-v1";
 const TTL = 1000 * 60 * 60 * 24 * 30;
 function lsGetMap(){
@@ -61,7 +63,7 @@ async function getCover(isbn){
   const now = Date.now();
   if (entry && entry.url && (now - (entry.ts||0)) < TTL) return entry.url;
 
-  // serverless fetch
+  // serverless fetch (키 노출 방지)
   const r = await fetch(`/api/aladin-cover?isbn=${encodeURIComponent(isbn)}`);
   const j = await r.json();
   const url = j?.cover || "";
@@ -72,8 +74,134 @@ async function getCover(isbn){
   return url;
 }
 
+// ---------------- 상세 집계 / 모달 / 요약 ----------------
+const detailCache = new Map(); // isbn -> detail json
+
+async function fetchDetail(isbn) {
+  if (!isbn) return null;
+  if (detailCache.has(isbn)) return detailCache.get(isbn);
+  const r = await fetch(`/api/book-detail?isbn=${encodeURIComponent(isbn)}`);
+  const j = await r.json();
+  detailCache.set(isbn, j);
+  return j;
+}
+
+// HTML 이스케이프
+function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeAttr(s){ return escapeHtml(s); }
+
+// 카드 안에 요약 드롭다운 채우기
+async function toggleSummary(cardEl, book) {
+  const sum = cardEl.querySelector(".summary");
+  const isOpen = cardEl.classList.contains("open");
+  if (isOpen) { cardEl.classList.remove("open"); return; }
+
+  // 처음 열 때만 로드
+  if (!sum.dataset.ready) {
+    sum.innerHTML = "불러오는 중…";
+    const d = await fetchDetail(book.isbn);
+    const desc = d?.description || "(소개 정보 없음)";
+    const tocHtml = (d?.toc?.length)
+      ? `<ul class="toc">${d.toc.slice(0,8).map(t => `<li>• ${escapeHtml(t.title)}${t.pagenum ? ` (${escapeHtml(t.pagenum)})` : ""}</li>`).join("")}</ul>`
+      : '<div class="toc muted">목차 정보 없음</div>';
+    sum.innerHTML = `
+      <div style="white-space:pre-wrap">${escapeHtml(desc).slice(0, 700)}${desc.length>700?'…':''}</div>
+      ${tocHtml}
+    `;
+    sum.dataset.ready = "1";
+  }
+
+  cardEl.classList.add("open");
+}
+
+// 상세 모달 열기
+function openDetailModal(detail) {
+  const root = document.getElementById("modal-root");
+  const body = document.getElementById("modal-body");
+  body.innerHTML = `
+    <div class="modal-grid">
+      <img class="cover-lg" alt="표지" src="${escapeAttr(detail.cover?.best || "")}">
+      <div>
+        <h3>${escapeHtml(detail.title || "")}</h3>
+        <div class="kv">저자: ${escapeHtml(detail.author || "-")} · 출판사: ${escapeHtml(detail.publisher || "-")} ${detail.pubYear?`(${escapeHtml(detail.pubYear)})`:""}</div>
+        <div class="kv" style="margin-top:12px;white-space:pre-wrap">${escapeHtml(detail.description || "소개 정보 없음")}</div>
+        <div class="toc">
+          <strong>목차</strong>
+          ${
+            (detail.toc && detail.toc.length)
+            ? `<ul>${detail.toc.map(t => `<li>• ${escapeHtml(t.title)}${t.pagenum?` (${escapeHtml(t.pagenum)})`:""}</li>`).join("")}</ul>`
+            : `<div class="muted">목차 정보 없음</div>`
+          }
+        </div>
+        <div class="ext" style="margin-top:10px">
+          ${detail.externalLinks?.aladin ? `<a target="_blank" rel="noopener" href="${escapeAttr(detail.externalLinks.aladin)}">알라딘</a>`:""}
+          ${detail.externalLinks?.openLibrary ? `<a target="_blank" rel="noopener" href="${escapeAttr(detail.externalLinks.openLibrary)}">OpenLibrary</a>`:""}
+        </div>
+      </div>
+    </div>
+  `;
+  root.style.display = "flex";
+  root.setAttribute("aria-hidden","false");
+  // 포커스
+  root.querySelector(".modal-close")?.focus();
+}
+
+// 모달 닫기/바인딩
+function bindModal() {
+  const root = document.getElementById("modal-root");
+  if (!root) return;
+  const closeBtn = root.querySelector(".modal-close");
+  const close = () => {
+    root.style.display = "none";
+    root.setAttribute("aria-hidden","true");
+  };
+  closeBtn?.addEventListener("click", close);
+  root.addEventListener("click", (e) => { if (e.target === root) close(); });
+  document.addEventListener("keydown", (e) => {
+    if (root.style.display === "flex" && e.key === "Escape") close();
+  });
+}
+
+// ------- 결과 카드 생성 -------
+function makeBookCard(b) {
+  const elCard = document.createElement("div");
+  elCard.className = "card";
+  elCard.style.position = "relative";
+  const isbnClean = (b.isbn || b.isbn13 || "").replace(/[^0-9Xx]/g,"");
+
+  elCard.innerHTML = `
+    <button class="more-btn" title="상세보기" aria-label="상세보기">i</button>
+    <div style="display:flex;align-items:center;gap:12px">
+      <img class="cover" alt="표지" data-isbn="${escapeAttr(isbnClean)}" loading="lazy">
+      <div>
+        <div style="font-weight:700;font-size:18px">${escapeHtml(b.title || "제목 없음")}</div>
+        <div class="muted" style="margin-top:4px">저자: ${escapeHtml(b.author || "-")} · 출판사: ${escapeHtml(b.publisher || "-")}${b.year?` (${escapeHtml(b.year)})`:""}</div>
+      </div>
+    </div>
+    <div class="badges" style="margin-top:8px">${[b.branch,b.theme,b.subTheme].filter(Boolean).map(t=>`<span class="badge">${escapeHtml(t)}</span>`).join("")}</div>
+    <div class="summary" aria-live="polite"></div>
+  `;
+
+  // 카드 클릭 → 요약 토글
+  elCard.addEventListener("click", (e) => {
+    const isMore = (e.target.closest(".more-btn") != null);
+    if (isMore) return; // 상세 버튼은 별도 처리
+    toggleSummary(elCard, b);
+  });
+
+  // 상세 버튼 → 모달
+  elCard.querySelector(".more-btn").addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const d = await fetchDetail(isbnClean || b.isbn);
+    openDetailModal(d || {});
+  });
+
+  return elCard;
+}
+
 // ---------------- main ----------------
 export default async function render(root) {
+  // 상태
   let state = {
     q: "",
     branch: "전체",
@@ -92,7 +220,8 @@ export default async function render(root) {
     state.books = normalizeBooks(rawBooks);
     state.branches = normalizeBranches(rawBranches);
   } catch (e) {
-    return showError(root, "데이터 로드 오류: " + (e.message || e));
+    showError(root, "데이터 로드 오류: " + (e.message || e));
+    return;
   }
 
   // 뼈대
@@ -107,6 +236,9 @@ export default async function render(root) {
 
   root.append(modeRow, searchInput, el("div", { style: "height:10px" }), branchRow, subRow, tools, el("div", { style: "height:6px" }), info, results);
 
+  // 모달 바인딩
+  bindModal();
+
   // 이벤트
   searchInput.addEventListener("input", () => { state.q = searchInput.value.trim(); paint(); });
   tools.querySelector("#resetBtn").addEventListener("click", () => {
@@ -117,14 +249,16 @@ export default async function render(root) {
 
   function paint(){ paintSearchModeChips(); paintBranchChips(); paintSubThemeChips(); paintResults(); }
 
+  // 🔹 검색 대상 칩
   function paintSearchModeChips(){
     const bar = root.querySelector("#modeBar"); bar.innerHTML = "";
     [["도서명","title"],["인생테마","theme"],["소분류","sub"],["통합검색","all"]]
     .forEach(([label,key]) => {
       bar.append(chip(label, state.searchMode===key, () => {
         state.searchMode = key;
+        // 즉시 칩 활성화 + placeholder 반영 + 목록 갱신
         searchInput.placeholder = placeholderFor(state.searchMode);
-        paintSearchModeChips();   // 즉시 칩 UI 반영
+        paintSearchModeChips();   // ✅ 누르자마자 초록색 반영
         paintResults();
         searchInput.focus();
       }));
@@ -151,6 +285,7 @@ export default async function render(root) {
     });
   }
 
+  // 지점별 소분류: 정의(curated) + 데이터 실측 facet 유니온
   function paintSubThemeChips(){
     const bar = root.querySelector("#subBar"); bar.innerHTML = "";
     const active = state.branch==="전체" ? null : state.branches.find((b)=> (b.branch||b.name)===state.branch);
@@ -192,7 +327,7 @@ export default async function render(root) {
         if (searchMode==="title") matchesQ = bTitle.toLowerCase().includes(s);
         else if (searchMode==="theme") matchesQ = bTheme.toLowerCase().includes(s);
         else if (searchMode==="sub") { const f=(bSub||bTheme).toLowerCase(); matchesQ = f.includes(s); }
-        else { // all
+        else { // 'all' 통합검색: 도서명/저자/출판사/지점/소분류(없으면 테마)
           const f = (bSub || bTheme);
           matchesQ = [bTitle, bAuthor, bPublisher, bBranch, f].some(v => (v||"").toLowerCase().includes(s));
         }
@@ -212,25 +347,10 @@ export default async function render(root) {
     box.innerHTML = "";
     const imgs = [];
     filtered.slice(0, 100).forEach((b) => {
-      const badges = [norm(b.branch), norm(b.theme), norm(b.subTheme)].filter(Boolean);
-
-      const img = el("img", { class: "cover", alt: (b.title || "표지"), "data-isbn": (b.isbn || b.isbn13 || "").replace(/[^0-9Xx]/g,""), loading: "lazy" });
-      imgs.push(img);
-
-      box.append(
-        el("div", { class: "card" },
-          el("div", { style: "display:flex;align-items:center;gap:12px" },
-            img,
-            el("div", {},
-              el("div", { style: "font-weight:700;font-size:18px" }, b.title || "제목 없음"),
-              el("div", { class: "muted", style: "margin-top:4px" },
-                `저자: ${b.author || "-"} · 출판사: ${b.publisher || "-"}${b.year ? ` (${b.year})` : ""}`
-              )
-            )
-          ),
-          el("div", { class: "badges" }, ...badges.map((t) => badge(t)))
-        )
-      );
+      const card = makeBookCard(b);
+      box.append(card);
+      const img = card.querySelector("img.cover");
+      if (img) imgs.push(img);
     });
 
     // 표지 지연 로딩
