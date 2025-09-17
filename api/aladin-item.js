@@ -4,7 +4,7 @@ export default async function handler(req, res) {
   if (!isbn13) return res.status(400).json({ error: 'isbn13 required' });
 
   try {
-    const key = process.env.TTB_KEY; // 기존 aladin-cover와 동일한 방식
+    const key = process.env.ALADIN_TTBKEY; // 기존 aladin-cover와 동일한 방식
     const url = `https://www.aladin.co.kr/ttb/api/ItemLookUp.aspx?ttbkey=${key}&itemIdType=ISBN13&ItemId=${isbn13}&output=js&Version=20131101&OptResult=fulldescription,summary,story,toc,reviewList,subInfo`;
 
     const r = await fetch(url);
